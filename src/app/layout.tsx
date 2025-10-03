@@ -11,13 +11,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Planejador Tributário v3.0 | Lucro Real",
-  description: "Sistema moderno de planejamento tributário brasileiro com React, Next.js e shadcn/ui. Calcule ICMS, PIS/COFINS, IRPJ/CSLL e DRE com precisão.",
-  keywords: ["planejamento tributário", "ICMS", "PIS", "COFINS", "IRPJ", "CSLL", "DRE", "impostos", "lucro real"],
+  title: "Planejador Tributário v2.0 | Sistema Multi-Empresa",
+  description: "Sistema completo de planejamento tributário com gestão multi-empresa, cenários temporais, relatórios e análises. Calcule ICMS, PIS/COFINS, IRPJ/CSLL e DRE com precisão.",
+  keywords: ["planejamento tributário", "ICMS", "PIS", "COFINS", "IRPJ", "CSLL", "DRE", "impostos", "lucro real", "multi-empresa", "cenários"],
   authors: [{ name: "Tax Planner Team" }],
   openGraph: {
-    title: "Planejador Tributário v3.0",
-    description: "Sistema completo de planejamento tributário para Lucro Real",
+    title: "Planejador Tributário v2.0",
+    description: "Sistema completo de planejamento tributário multi-empresa para Lucro Real",
     type: "website",
   },
 };

@@ -2,7 +2,7 @@
 
 ## ✅ Progresso Atual
 
-### Fase 1: Refatoração de Rotas e Empresas (EM PROGRESSO)
+### Fase 1: Refatoração de Rotas e Empresas ✅ COMPLETA
 
 #### ✅ Completado:
 
@@ -25,6 +25,32 @@
    - ✅ `/app/empresas/page.tsx` - Lista de empresas
    - ✅ `/app/empresas/nova/page.tsx` - Formulário criar empresa
    - ✅ `/app/empresas/[id]/page.tsx` - Dashboard da empresa
+
+### Fase 2: Cenários ✅ COMPLETA
+
+#### ✅ Completado:
+
+1. **Páginas de Cenários**
+   - ✅ `/app/empresas/[id]/cenarios/page.tsx` - Lista de cenários com filtros
+   - ✅ `/app/empresas/[id]/cenarios/novo/page.tsx` - Criar novo cenário
+   - ✅ `/app/empresas/[id]/cenarios/[cenarioId]/page.tsx` - Editar cenário
+
+2. **Funcionalidades**
+   - ✅ Timeline visual mensal (grid 12 meses)
+   - ✅ Filtros por ano, status e busca
+   - ✅ Criação de cenários com período (mensal, trimestral, semestral, anual)
+   - ✅ Edição integrada com ConfigPanel existente
+   - ✅ Duplicar cenários
+   - ✅ Aprovar/Arquivar cenários
+   - ✅ Estatísticas (total, aprovados, rascunhos, arquivados)
+
+3. **Hooks Personalizados**
+   - ✅ `src/hooks/use-cenarios.ts` - Hook para gerenciar cenários
+
+4. **Navegação**
+   - ✅ Página inicial (/) redireciona para /empresas
+   - ✅ Breadcrumbs em todas as páginas
+   - ✅ Navegação entre empresa → cenários → edição
 
 ---
 

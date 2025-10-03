@@ -145,7 +145,8 @@ export function ImportCSVButton({ credito, onImport, className }: ImportCSVButto
                 • Separador: ponto-e-vírgula (;)<br />
                 • Colunas: descricao;valor;tipo;categoria<br />
                 • Tipo: "custo" ou "despesa"<br />
-                • Valor: formato brasileiro (1.500,00) ou internacional (1500.00)
+                • Valor: aceita "R$ 1.500,00", "1.500,00" ou "1500.00"<br />
+                • Categoria: opcional
               </AlertDescription>
             </Alert>
 

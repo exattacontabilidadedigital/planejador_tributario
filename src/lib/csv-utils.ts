@@ -57,8 +57,10 @@ export function baixarModeloCSV(credito: DespesaCredito): void {
  * Converte valor do formato brasileiro (1.500,00) ou internacional (1500.00) para número
  */
 function parseValorBR(valorStr: string): number {
-  // Remove espaços
+  // Remove espaços e símbolo R$
   let valor = valorStr.trim()
+    .replace(/R\$/g, '')  // Remove R$
+    .replace(/\s+/g, '')  // Remove todos os espaços
   
   // Detecta formato brasileiro: 1.500,00 ou 1500,00
   if (valor.includes(',')) {

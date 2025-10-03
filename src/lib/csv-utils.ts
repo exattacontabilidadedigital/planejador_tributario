@@ -88,7 +88,14 @@ export function parseCSV(
   csvContent: string,
   credito: DespesaCredito
 ): { sucesso: DespesaItem[]; erros: string[] } {
-  const linhas = csvContent.trim().split("\n")
+  // Remove BOM e normaliza quebras de linha
+  let content = csvContent.trim()
+  if (content.charCodeAt(0) === 0xFEFF) {
+    content = content.substring(1)
+  }
+  
+  // Split por quebra de linha e remove espaços no início/fim de cada linha
+  const linhas = content.split(/\r?\n/).map(linha => linha.trim())
   const sucesso: DespesaItem[] = []
   const erros: string[] = []
   
@@ -101,11 +108,14 @@ export function parseCSV(
   // Pula header (primeira linha)
   const dados = linhas.slice(1)
   
+  // Timestamp base para IDs únicos
+  const baseTimestamp = Date.now()
+  
   dados.forEach((linha, index) => {
     const numeroLinha = index + 2 // +2 porque pulamos header e index começa em 0
     
     // Pula linhas vazias
-    if (!linha.trim()) return
+    if (!linha) return
     
     const colunas = linha.split(";").map(col => col.trim())
     
@@ -136,9 +146,9 @@ export function parseCSV(
       return
     }
     
-    // Cria despesa
+    // Cria despesa com ID único (timestamp + contador)
     sucesso.push({
-      id: `import-${Date.now()}-${index}`,
+      id: `import-${baseTimestamp}-${index}`,
       descricao,
       valor,
       tipo: tipo as "custo" | "despesa",

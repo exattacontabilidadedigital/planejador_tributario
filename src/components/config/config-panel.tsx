@@ -34,6 +34,18 @@ export function ConfigPanel() {
     })
   }
 
+  const handleBulkAddDespesa = (novasDespesas: Omit<DespesaItem, "id">[]) => {
+    const baseTimestamp = Date.now()
+    const despesasComId: DespesaItem[] = novasDespesas.map((despesa, index) => ({
+      ...despesa,
+      id: `despesa-${baseTimestamp}-${index}-${Math.random().toString(36).substr(2, 9)}`,
+    }))
+    
+    updateConfig({
+      despesasDinamicas: [...despesas, ...despesasComId],
+    })
+  }
+
   const handleEditDespesa = (id: string, updates: Partial<DespesaItem>) => {
     updateConfig({
       despesasDinamicas: despesas.map((d) =>
@@ -332,6 +344,7 @@ export function ConfigPanel() {
                   despesas={despesas}
                   credito="com-credito"
                   onAdd={handleAddDespesa}
+                  onBulkAdd={handleBulkAddDespesa}
                   onEdit={handleEditDespesa}
                   onDelete={handleDeleteDespesa}
                 />
@@ -349,6 +362,7 @@ export function ConfigPanel() {
                   despesas={despesas}
                   credito="sem-credito"
                   onAdd={handleAddDespesa}
+                  onBulkAdd={handleBulkAddDespesa}
                   onEdit={handleEditDespesa}
                   onDelete={handleDeleteDespesa}
                 />

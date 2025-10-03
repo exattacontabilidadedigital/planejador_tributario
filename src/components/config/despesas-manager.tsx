@@ -34,9 +34,10 @@ interface DespesasManagerProps {
   onAdd: (despesa: Omit<DespesaItem, "id">) => void
   onEdit: (id: string, despesa: Partial<DespesaItem>) => void
   onDelete: (id: string) => void
+  onBulkAdd?: (despesas: Omit<DespesaItem, "id">[]) => void
 }
 
-export function DespesasManager({ despesas, credito, onAdd, onEdit, onDelete }: DespesasManagerProps) {
+export function DespesasManager({ despesas, credito, onAdd, onEdit, onDelete, onBulkAdd }: DespesasManagerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -100,15 +101,28 @@ export function DespesasManager({ despesas, credito, onAdd, onEdit, onDelete }: 
   const totalDespesasOp = despesasFiltradas.filter((d) => d.tipo === "despesa").reduce((sum, d) => sum + d.valor, 0)
 
   const handleImportCSV = (despesasImportadas: DespesaItem[]) => {
-    despesasImportadas.forEach((despesa) => {
-      onAdd({
-        descricao: despesa.descricao,
-        valor: despesa.valor,
-        tipo: despesa.tipo,
-        credito: despesa.credito,
-        categoria: despesa.categoria,
+    // Se tem função de bulk add, usa ela (mais eficiente)
+    if (onBulkAdd) {
+      const despesasSemId = despesasImportadas.map(({ descricao, valor, tipo, credito, categoria }) => ({
+        descricao,
+        valor,
+        tipo,
+        credito,
+        categoria,
+      }))
+      onBulkAdd(despesasSemId)
+    } else {
+      // Fallback: adiciona uma por uma
+      despesasImportadas.forEach((despesa) => {
+        onAdd({
+          descricao: despesa.descricao,
+          valor: despesa.valor,
+          tipo: despesa.tipo,
+          credito: despesa.credito,
+          categoria: despesa.categoria,
+        })
       })
-    })
+    }
   }
 
   const handleExportCSV = () => {

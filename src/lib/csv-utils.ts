@@ -34,11 +34,16 @@ export function gerarModeloCSV(credito: DespesaCredito): string {
 }
 
 /**
- * Baixa o arquivo CSV modelo
+ * Baixa o arquivo CSV modelo com UTF-8 BOM
  */
 export function baixarModeloCSV(credito: DespesaCredito): void {
   const csv = gerarModeloCSV(credito)
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+  
+  // Adiciona BOM UTF-8 para garantir compatibilidade com Excel
+  const BOM = '\uFEFF'
+  const csvComBOM = BOM + csv
+  
+  const blob = new Blob([csvComBOM], { type: "text/csv;charset=utf-8;" })
   const link = document.createElement("a")
   
   const fileName = credito === "com-credito" 
@@ -146,14 +151,20 @@ export function parseCSV(
 }
 
 /**
- * Lê arquivo CSV do input file
+ * Lê arquivo CSV do input file com detecção de encoding
  */
 export function lerArquivoCSV(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     
     reader.onload = (e) => {
-      const content = e.target?.result as string
+      let content = e.target?.result as string
+      
+      // Remove BOM (Byte Order Mark) se presente
+      if (content.charCodeAt(0) === 0xFEFF) {
+        content = content.substring(1)
+      }
+      
       resolve(content)
     }
     
@@ -161,6 +172,7 @@ export function lerArquivoCSV(file: File): Promise<string> {
       reject(new Error("Erro ao ler arquivo"))
     }
     
+    // Tenta ler com UTF-8 primeiro
     reader.readAsText(file, "UTF-8")
   })
 }
@@ -196,7 +208,7 @@ function formatarValorBR(valor: number): string {
 }
 
 /**
- * Exporta despesas existentes para CSV (formato brasileiro)
+ * Exporta despesas existentes para CSV (formato brasileiro com UTF-8 BOM)
  */
 export function exportarDespesasCSV(despesas: DespesaItem[], credito: DespesaCredito): void {
   if (despesas.length === 0) {
@@ -209,7 +221,12 @@ export function exportarDespesasCSV(despesas: DespesaItem[], credito: DespesaCre
   )
   
   const csv = `${headers}\n${linhas.join("\n")}`
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+  
+  // Adiciona BOM UTF-8 para garantir compatibilidade com Excel
+  const BOM = '\uFEFF'
+  const csvComBOM = BOM + csv
+  
+  const blob = new Blob([csvComBOM], { type: "text/csv;charset=utf-8;" })
   const link = document.createElement("a")
   
   const fileName = credito === "com-credito"

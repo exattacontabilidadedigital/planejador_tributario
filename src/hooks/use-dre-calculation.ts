@@ -31,27 +31,13 @@ export function useDRECalculation(config: TaxConfig): DREData {
     // Lucro Bruto
     const lucroBruto = receitaLiquida - cmv;
 
-    // Despesas Operacionais (detalhadas)
-    const salariosPF = config.salariosPF;
-    const energia = config.energiaEletrica;
-    const alugueis = config.alugueis;
-    const arrendamento = config.arrendamento;
-    const frete = config.frete;
-    const depreciacao = config.depreciacao;
-    const combustiveis = config.combustiveis;
-    const valeTransporte = config.valeTransporte;
-    const valeAlimentacao = config.alimentacao;
-    const combustivelPasseio = config.combustivelPasseio;
-    const outras = config.outrasDespesas;
-    
-    // Despesas Dinâmicas (somente tipo "despesa")
+    // Despesas Operacionais - APENAS despesas dinâmicas tipo "despesa"
+    // (Despesas fixas antigas foram migradas para despesas dinâmicas)
     const despesasDinamicas = (config.despesasDinamicas || [])
       .filter(d => d.tipo === 'despesa')
       .reduce((total, despesa) => total + despesa.valor, 0);
     
-    const totalDespesasOperacionais = salariosPF + energia + alugueis + arrendamento + 
-                                       frete + depreciacao + combustiveis + valeTransporte + 
-                                       valeAlimentacao + combustivelPasseio + outras + despesasDinamicas;
+    const totalDespesasOperacionais = despesasDinamicas;
 
     // Lucro Antes IR/CSLL
     const lucroAntesIRCSLL = lucroBruto - totalDespesasOperacionais;
@@ -82,17 +68,6 @@ export function useDRECalculation(config: TaxConfig): DREData {
       cmv,
       lucroBruto,
       despesasOperacionais: {
-        salariosPF,
-        energia,
-        alugueis,
-        arrendamento,
-        frete,
-        depreciacao,
-        combustiveis,
-        valeTransporte,
-        valeAlimentacao,
-        combustivelPasseio,
-        outras,
         despesasDinamicas,
         total: totalDespesasOperacionais,
       },

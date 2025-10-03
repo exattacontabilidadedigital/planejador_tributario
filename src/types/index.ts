@@ -298,17 +298,6 @@ export interface DREData {
   cmv: number;
   lucroBruto: number;
   despesasOperacionais: {
-    salariosPF: number;
-    energia: number;
-    alugueis: number;
-    arrendamento: number;
-    frete: number;
-    depreciacao: number;
-    combustiveis: number;
-    valeTransporte: number;
-    valeAlimentacao: number;
-    combustivelPasseio: number;
-    outras: number;
     despesasDinamicas: number;
     total: number;
   };

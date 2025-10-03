@@ -35,9 +35,10 @@ interface DespesasManagerProps {
   onEdit: (id: string, despesa: Partial<DespesaItem>) => void
   onDelete: (id: string) => void
   onBulkAdd?: (despesas: Omit<DespesaItem, "id">[]) => void
+  onClearDuplicates?: () => void
 }
 
-export function DespesasManager({ despesas, credito, onAdd, onEdit, onDelete, onBulkAdd }: DespesasManagerProps) {
+export function DespesasManager({ despesas, credito, onAdd, onEdit, onDelete, onBulkAdd, onClearDuplicates }: DespesasManagerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -48,6 +49,21 @@ export function DespesasManager({ despesas, credito, onAdd, onEdit, onDelete, on
   })
 
   const despesasFiltradas = despesas.filter((d) => d.credito === credito)
+
+  // Detecta duplicatas (mesma descrição e valor)
+  const temDuplicatas = React.useMemo(() => {
+    const seen = new Map<string, number>()
+    despesasFiltradas.forEach((d) => {
+      const key = `${d.descricao.toLowerCase()}-${d.valor}`
+      seen.set(key, (seen.get(key) || 0) + 1)
+    })
+    return Array.from(seen.values()).some(count => count > 1)
+  }, [despesasFiltradas])
+
+  // Detecta caracteres corrompidos
+  const temCaracteresCorrempidos = React.useMemo(() => {
+    return despesasFiltradas.some(d => d.descricao.includes('�'))
+  }, [despesasFiltradas])
 
   const handleSubmit = () => {
     if (!formData.descricao || formData.valor <= 0) {
@@ -131,6 +147,33 @@ export function DespesasManager({ despesas, credito, onAdd, onEdit, onDelete, on
 
   return (
     <div className="space-y-4">
+      {/* Alerta de Duplicatas/Caracteres Corrompidos */}
+      {(temDuplicatas || temCaracteresCorrempidos) && onClearDuplicates && (
+        <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-5 h-5 text-yellow-600 dark:text-yellow-400">⚠️</div>
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">
+                {temCaracteresCorrempidos ? 'Caracteres Corrompidos Detectados' : 'Duplicatas Detectadas'}
+              </h4>
+              <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
+                {temCaracteresCorrempidos 
+                  ? 'Encontramos despesas com caracteres corrompidos (�). Isso acontece quando o CSV não foi importado com UTF-8.' 
+                  : 'Existem despesas duplicadas (mesma descrição e valor).'}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 text-xs h-7"
+                onClick={onClearDuplicates}
+              >
+                Limpar {temCaracteresCorrempidos ? 'Corrompidas' : 'Duplicatas'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Header com Total e Botões */}
       <div className="flex items-center justify-between gap-2">
         <div className="space-y-1">

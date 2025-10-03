@@ -60,6 +60,35 @@ export function ConfigPanel() {
     })
   }
 
+  const handleClearDuplicates = () => {
+    // Remove despesas com caracteres corrompidos E duplicatas
+    const seen = new Map<string, DespesaItem>()
+    const despesasLimpas: DespesaItem[] = []
+    
+    despesas.forEach((despesa) => {
+      // Ignora se tem caracteres corrompidos
+      if (despesa.descricao.includes('�')) {
+        return
+      }
+      
+      // Chave única: descrição + valor
+      const key = `${despesa.descricao.toLowerCase()}-${despesa.valor}`
+      
+      // Se já existe, mantém a mais recente (ID maior)
+      const existing = seen.get(key)
+      if (!existing || despesa.id > existing.id) {
+        seen.set(key, despesa)
+      }
+    })
+    
+    // Converte Map para Array
+    seen.forEach((despesa) => despesasLimpas.push(despesa))
+    
+    updateConfig({
+      despesasDinamicas: despesasLimpas,
+    })
+  }
+
   return (
     <div className="space-y-6">
       {/* Actions */}
@@ -347,6 +376,7 @@ export function ConfigPanel() {
                   onBulkAdd={handleBulkAddDespesa}
                   onEdit={handleEditDespesa}
                   onDelete={handleDeleteDespesa}
+                  onClearDuplicates={handleClearDuplicates}
                 />
               </CardContent>
             </Card>
@@ -365,6 +395,7 @@ export function ConfigPanel() {
                   onBulkAdd={handleBulkAddDespesa}
                   onEdit={handleEditDespesa}
                   onDelete={handleDeleteDespesa}
+                  onClearDuplicates={handleClearDuplicates}
                 />
               </CardContent>
             </Card>

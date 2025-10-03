@@ -124,38 +124,51 @@ export function useComparativos(cenariosIds: string[]) {
     for (let i = 1; i < metricas.length; i++) {
       const comparado = metricas[i]
 
-      // Comparar receita
+      // Comparar receita (sempre mostra se há diferença)
       const difReceita = ((comparado.receita - base.receita) / base.receita) * 100
-      if (Math.abs(difReceita) > 5) {
+      if (Math.abs(difReceita) > 0.1) {
         resultados.push({
           tipo: difReceita > 0 ? "success" : "alert",
           mensagem: `${comparado.nome} tem receita ${
             difReceita > 0 ? "maior" : "menor"
-          } em ${Math.abs(difReceita).toFixed(1)}% vs ${base.nome}`,
+          } em ${Math.abs(difReceita).toFixed(1)}% comparado a ${base.nome}`,
+        })
+      } else if (comparado.receita === base.receita) {
+        resultados.push({
+          tipo: "warning",
+          mensagem: `${comparado.nome} tem a mesma receita que ${base.nome}`,
         })
       }
 
       // Comparar carga tributária
       const difCarga = comparado.cargaTributaria - base.cargaTributaria
-      if (Math.abs(difCarga) > 2) {
+      if (Math.abs(difCarga) > 0.5) {
         resultados.push({
           tipo: difCarga < 0 ? "success" : "alert",
           mensagem: `${comparado.nome} tem carga tributária ${
             difCarga < 0 ? "menor" : "maior"
-          } (${difCarga > 0 ? "+" : ""}${difCarga.toFixed(1)}pp) vs ${base.nome}`,
+          } (${difCarga > 0 ? "+" : ""}${difCarga.toFixed(1)}pp) que ${base.nome}`,
         })
       }
 
       // Comparar margem líquida
       const difMargem = comparado.margemLiquida - base.margemLiquida
-      if (Math.abs(difMargem) > 2) {
+      if (Math.abs(difMargem) > 0.5) {
         resultados.push({
           tipo: difMargem > 0 ? "success" : "alert",
           mensagem: `${comparado.nome} tem margem líquida ${
             difMargem > 0 ? "melhor" : "pior"
-          } (${difMargem > 0 ? "+" : ""}${difMargem.toFixed(1)}pp) vs ${base.nome}`,
+          } (${difMargem > 0 ? "+" : ""}${difMargem.toFixed(1)}pp) que ${base.nome}`,
         })
       }
+    }
+
+    // Se não houver insights, adicionar um informativo
+    if (resultados.length === 0) {
+      resultados.push({
+        tipo: "warning",
+        mensagem: `Os cenários selecionados têm configurações muito similares. Configure valores diferentes para ver comparações.`,
+      })
     }
 
     return resultados.slice(0, 5) // Máximo 5 insights

@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, BarChart3, TrendingUp, TrendingDown, AlertCircle } from "lucide-react"
+import { format } from "date-fns"
+import { ArrowLeft, BarChart3, TrendingUp, TrendingDown, AlertCircle, Save, FolderOpen, Trash2 } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -15,8 +16,22 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
 import { useEmpresasStore } from "@/stores/empresas-store"
 import { useCenariosStore } from "@/stores/cenarios-store"
+import { useComparativosStore } from "@/stores/comparativos-store"
 import { useComparativos } from "@/hooks/use-comparativos"
 import {
   BarChart,
@@ -41,13 +56,19 @@ export default function ComparativosPage() {
   const router = useRouter()
   const id = params.id as string
 
+  const { toast } = useToast()
   const { getEmpresa } = useEmpresasStore()
   const { getCenariosByEmpresa } = useCenariosStore()
+  const { addComparativo, getComparativosByEmpresa, deleteComparativo } = useComparativosStore()
 
   const empresa = getEmpresa(id)
-  const todosCenarios = getCenariosByEmpresa(id)
+  const todosCenarios = getCenariosByEmpresa(id) || []
+  const comparativosSalvos = getComparativosByEmpresa(id)
 
   const [cenariosIds, setCenariosIds] = useState<string[]>([])
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [nomeComparativo, setNomeComparativo] = useState("")
+  const [descricaoComparativo, setDescricaoComparativo] = useState("")
 
   const {
     metricas,
@@ -67,6 +88,64 @@ export default function ComparativosPage() {
   // Remover cenário
   const handleRemoveCenario = (cenarioId: string) => {
     setCenariosIds(cenariosIds.filter((id) => id !== cenarioId))
+  }
+
+  // Salvar comparativo
+  const handleSalvarComparativo = () => {
+    if (!nomeComparativo.trim()) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Informe um nome para o comparativo.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (cenariosIds.length < 2) {
+      toast({
+        title: "Cenários insuficientes",
+        description: "Selecione pelo menos 2 cenários para salvar.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    addComparativo(id, {
+      nome: nomeComparativo,
+      descricao: descricaoComparativo,
+      cenariosIds,
+    })
+
+    toast({
+      title: "Comparativo salvo!",
+      description: `${nomeComparativo} foi salvo com sucesso.`,
+    })
+
+    setDialogOpen(false)
+    setNomeComparativo("")
+    setDescricaoComparativo("")
+  }
+
+  // Carregar comparativo salvo
+  const handleCarregarComparativo = (comparativoId: string) => {
+    const comparativo = comparativosSalvos.find((c) => c.id === comparativoId)
+    if (comparativo) {
+      setCenariosIds(comparativo.cenariosIds)
+      toast({
+        title: "Comparativo carregado!",
+        description: `${comparativo.nome} foi carregado.`,
+      })
+    }
+  }
+
+  // Excluir comparativo salvo
+  const handleExcluirComparativo = (comparativoId: string) => {
+    const comparativo = comparativosSalvos.find((c) => c.id === comparativoId)
+    deleteComparativo(comparativoId)
+    toast({
+      title: "Comparativo excluído",
+      description: `${comparativo?.nome} foi removido.`,
+    })
   }
 
   // Cenários disponíveis (não selecionados)
@@ -99,6 +178,57 @@ export default function ComparativosPage() {
             </div>
           </div>
         </div>
+        
+        <div className="flex gap-2">
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2" disabled={cenariosIds.length < 2}>
+                <Save className="h-4 w-4" />
+                Salvar Comparativo
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Salvar Comparativo</DialogTitle>
+                <DialogDescription>
+                  Salve esta seleção de cenários para comparação rápida no futuro
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nome">Nome do Comparativo *</Label>
+                  <Input
+                    id="nome"
+                    value={nomeComparativo}
+                    onChange={(e) => setNomeComparativo(e.target.value)}
+                    placeholder="Ex: Comparação Q1 2025"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="descricao">Descrição (opcional)</Label>
+                  <Textarea
+                    id="descricao"
+                    value={descricaoComparativo}
+                    onChange={(e) => setDescricaoComparativo(e.target.value)}
+                    placeholder="Descreva o objetivo desta comparação..."
+                    rows={3}
+                  />
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {cenariosIds.length} {cenariosIds.length === 1 ? 'cenário selecionado' : 'cenários selecionados'}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSalvarComparativo}>
+                  Salvar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Seletor de cenários */}
@@ -126,6 +256,11 @@ export default function ComparativosPage() {
                 </Badge>
               )
             })}
+            {cenariosIds.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Nenhum cenário selecionado
+              </p>
+            )}
           </div>
 
           {cenariosIds.length < 4 && (
@@ -136,7 +271,7 @@ export default function ComparativosPage() {
               <SelectContent>
                 {cenariosDisponiveis.map((cenario: any) => (
                   <SelectItem key={cenario.id} value={cenario.id}>
-                    {cenario.nome} ({cenario.periodo})
+                    {cenario.nome} ({cenario.periodo.tipo} - {cenario.periodo.ano})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -144,6 +279,57 @@ export default function ComparativosPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Comparativos Salvos */}
+      {comparativosSalvos.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FolderOpen className="h-5 w-5" />
+              Comparativos Salvos
+            </CardTitle>
+            <CardDescription>
+              Carregue comparações salvas anteriormente
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {comparativosSalvos.map((comp) => (
+                <div
+                  key={comp.id}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium">{comp.nome}</p>
+                    {comp.descricao && (
+                      <p className="text-sm text-muted-foreground">{comp.descricao}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {comp.cenariosIds.length} cenários • Criado em {format(new Date(comp.criadoEm), 'dd/MM/yyyy')}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCarregarComparativo(comp.id)}
+                    >
+                      Carregar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleExcluirComparativo(comp.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Estado vazio */}
       {!temDados && (
@@ -172,24 +358,31 @@ export default function ComparativosPage() {
 
             const bgColor =
               insight.tipo === "success"
-                ? "bg-green-50 border-green-200"
+                ? "bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800"
                 : insight.tipo === "alert"
-                ? "bg-red-50 border-red-200"
-                : "bg-yellow-50 border-yellow-200"
+                ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800"
+                : "bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-800"
 
             const iconColor =
               insight.tipo === "success"
-                ? "text-green-600"
+                ? "text-green-600 dark:text-green-400"
                 : insight.tipo === "alert"
-                ? "text-red-600"
-                : "text-yellow-600"
+                ? "text-red-600 dark:text-red-400"
+                : "text-yellow-600 dark:text-yellow-400"
+
+            const textColor =
+              insight.tipo === "success"
+                ? "text-green-900 dark:text-green-100"
+                : insight.tipo === "alert"
+                ? "text-red-900 dark:text-red-100"
+                : "text-yellow-900 dark:text-yellow-100"
 
             return (
               <Card key={idx} className={bgColor}>
                 <CardContent className="pt-6">
                   <div className="flex gap-3">
                     <Icon className={`h-5 w-5 ${iconColor} flex-shrink-0 mt-0.5`} />
-                    <p className="text-sm">{insight.mensagem}</p>
+                    <p className={`text-sm font-medium ${textColor}`}>{insight.mensagem}</p>
                   </div>
                 </CardContent>
               </Card>

@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useMemo } from "react"
+import { use, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useEmpresasStore } from "@/stores/empresas-store"
 import { useCenariosStore } from "@/stores/cenarios-store"
@@ -44,7 +44,7 @@ export default function EmpresaDashboardPage({
   
   const empresa = getEmpresa(id)
   const cenarios = getCenariosByEmpresa(id)
-  const anoAtual = new Date().getFullYear()
+  const [anoAtual] = useState(() => new Date().getFullYear())
   const { dadosEvolucao, totais, cenariosAprovados } = useRelatorios(id, anoAtual)
   
   if (!empresa) {

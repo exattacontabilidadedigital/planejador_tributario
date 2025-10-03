@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Teste de Encoding CSV</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .test { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        pre { background: #f5f5f5; padding: 10px; overflow: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste de Encoding CSV</h1>
+    
+    <div class="test">
+        <h3>1. Selecione o arquivo CSV:</h3>
+        <input type="file" id="fileInput" accept=".csv">
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            // Teste 1: Ler como ArrayBuffer e tentar diferentes encodings
+            const arrayBuffer = await file.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+
+            // Mostra primeiros bytes (hexadecimal)
+            const primeirosBytes = Array.from(bytes.slice(0, 20))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join(' ');
+
+            resultsDiv.innerHTML += `
+                <div class="test">
+                    <h3>Primeiros 20 bytes (hex):</h3>
+                    <pre>${primeirosBytes}</pre>
+                    <p>${bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF ? '✅ TEM BOM UTF-8' : '❌ SEM BOM UTF-8'}</p>
+                </div>
+            `;
+
+            // Teste UTF-8
+            try {
+                const decoderUTF8 = new TextDecoder('utf-8', { fatal: true });
+                const contentUTF8 = decoderUTF8.decode(bytes);
+                const preview = contentUTF8.substring(0, 500);
+                
+                resultsDiv.innerHTML += `
+                    <div class="test success">
+                        <h3>✅ UTF-8 (SUCESSO):</h3>
+                        <pre>${preview.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+                    </div>
+                `;
+            } catch (err) {
+                resultsDiv.innerHTML += `
+                    <div class="test error">
+                        <h3>❌ UTF-8 (FALHOU):</h3>
+                        <p>${err.message}</p>
+                    </div>
+                `;
+            }
+
+            // Teste ISO-8859-1
+            try {
+                const decoderLatin1 = new TextDecoder('iso-8859-1');
+                const contentLatin1 = decoderLatin1.decode(bytes);
+                const preview = contentLatin1.substring(0, 500);
+                
+                resultsDiv.innerHTML += `
+                    <div class="test">
+                        <h3>ISO-8859-1 (Latin1):</h3>
+                        <pre>${preview.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+                    </div>
+                `;
+            } catch (err) {
+                resultsDiv.innerHTML += `
+                    <div class="test error">
+                        <h3>❌ ISO-8859-1 (FALHOU):</h3>
+                        <p>${err.message}</p>
+                    </div>
+                `;
+            }
+
+            // Teste Windows-1252
+            try {
+                const decoderWin = new TextDecoder('windows-1252');
+                const contentWin = decoderWin.decode(bytes);
+                const preview = contentWin.substring(0, 500);
+                
+                resultsDiv.innerHTML += `
+                    <div class="test">
+                        <h3>Windows-1252:</h3>
+                        <pre>${preview.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+                    </div>
+                `;
+            } catch (err) {
+                resultsDiv.innerHTML += `
+                    <div class="test error">
+                        <h3>❌ Windows-1252 (FALHOU):</h3>
+                        <p>${err.message}</p>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

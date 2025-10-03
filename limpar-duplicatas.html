@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpar Duplicatas - Planejador Tributário</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #0c5460;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #c82333;
+        }
+        button.secondary {
+            background: #6c757d;
+        }
+        button.secondary:hover {
+            background: #5a6268;
+        }
+        #resultado {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        #resultado.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        #resultado.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .stats {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Limpar Duplicatas e Caracteres Corrompidos</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Atenção!</strong><br>
+            Este script irá remover permanentemente:
+            <ul>
+                <li>Todas as despesas com caracteres corrompidos (�)</li>
+                <li>Despesas duplicadas (mantém apenas a mais recente)</li>
+            </ul>
+        </div>
+
+        <div class="info">
+            <strong>ℹ️ Como funciona:</strong><br>
+            O script lê o localStorage do navegador onde estão suas configurações e remove duplicatas automaticamente.
+        </div>
+
+        <div class="stats" id="stats">
+            <strong>Estatísticas antes da limpeza:</strong><br>
+            <span id="statsContent">Clique em "Analisar" para ver os dados</span>
+        </div>
+
+        <button onclick="analisar()">📊 Analisar Dados</button>
+        <button onclick="limpar()">🧹 Limpar Duplicatas</button>
+        <button class="secondary" onclick="backup()">💾 Fazer Backup</button>
+
+        <div id="resultado"></div>
+    </div>
+
+    <script>
+        function analisar() {
+            const data = localStorage.getItem('tax-planner-storage')
+            if (!data) {
+                mostrarResultado('Nenhum dado encontrado no localStorage', 'error')
+                return
+            }
+
+            try {
+                const parsed = JSON.parse(data)
+                const config = parsed.state?.config
+                const despesas = config?.despesasDinamicas || []
+
+                const comCaracteres = despesas.filter(d => d.descricao.includes('�'))
+                const seen = new Map()
+                const duplicadas = []
+
+                despesas.forEach(d => {
+                    if (d.descricao.includes('�')) return
+                    const key = `${d.descricao.toLowerCase()}-${d.valor}`
+                    if (seen.has(key)) {
+                        duplicadas.push(d)
+                    }
+                    seen.set(key, d)
+                })
+
+                const stats = `
+                    <strong>Total de despesas:</strong> ${despesas.length}<br>
+                    <strong>Com caracteres corrompidos (�):</strong> ${comCaracteres.length}<br>
+                    <strong>Duplicadas:</strong> ${duplicadas.length}<br>
+                    <strong>Despesas únicas sem erros:</strong> ${seen.size}<br>
+                    <br>
+                    ${comCaracteres.length > 0 ? '<strong style="color: #dc3545;">Despesas corrompidas:</strong><br>' + comCaracteres.map(d => `• ${d.descricao}`).join('<br>') : ''}
+                `
+                document.getElementById('statsContent').innerHTML = stats
+                mostrarResultado(`Análise concluída! ${comCaracteres.length + duplicadas.length} item(ns) serão removidos.`, 'success')
+            } catch (error) {
+                mostrarResultado('Erro ao analisar dados: ' + error.message, 'error')
+            }
+        }
+
+        function limpar() {
+            if (!confirm('⚠️ ATENÇÃO: Esta ação removerá permanentemente as despesas duplicadas e corrompidas. Deseja continuar?')) {
+                return
+            }
+
+            const data = localStorage.getItem('tax-planner-storage')
+            if (!data) {
+                mostrarResultado('Nenhum dado encontrado no localStorage', 'error')
+                return
+            }
+
+            try {
+                const parsed = JSON.parse(data)
+                const config = parsed.state?.config
+                const despesas = config?.despesasDinamicas || []
+
+                // Remove despesas com caracteres corrompidos E duplicatas
+                const seen = new Map()
+                const despesasLimpas = []
+                let removidas = 0
+
+                despesas.forEach((despesa) => {
+                    // Ignora se tem caracteres corrompidos
+                    if (despesa.descricao.includes('�')) {
+                        removidas++
+                        return
+                    }
+
+                    // Chave única: descrição + valor
+                    const key = `${despesa.descricao.toLowerCase()}-${despesa.valor}`
+
+                    // Se já existe, mantém a mais recente (ID maior)
+                    const existing = seen.get(key)
+                    if (!existing || despesa.id > existing.id) {
+                        if (existing) removidas++
+                        seen.set(key, despesa)
+                    } else {
+                        removidas++
+                    }
+                })
+
+                // Converte Map para Array
+                seen.forEach((despesa) => despesasLimpas.push(despesa))
+
+                // Atualiza localStorage
+                parsed.state.config.despesasDinamicas = despesasLimpas
+                localStorage.setItem('tax-planner-storage', JSON.stringify(parsed))
+
+                mostrarResultado(`✅ Limpeza concluída!<br>
+                    <strong>Antes:</strong> ${despesas.length} despesas<br>
+                    <strong>Depois:</strong> ${despesasLimpas.length} despesas<br>
+                    <strong>Removidas:</strong> ${removidas} despesas<br><br>
+                    <strong>Recarregue a página do Planejador para ver as mudanças!</strong>`, 'success')
+
+                // Atualiza estatísticas
+                document.getElementById('statsContent').innerHTML = `
+                    <strong>Total de despesas:</strong> ${despesasLimpas.length}<br>
+                    <strong>Com caracteres corrompidos (�):</strong> 0<br>
+                    <strong>Duplicadas:</strong> 0<br>
+                    ✅ <strong style="color: #28a745;">Dados limpos!</strong>
+                `
+            } catch (error) {
+                mostrarResultado('Erro ao limpar dados: ' + error.message, 'error')
+            }
+        }
+
+        function backup() {
+            const data = localStorage.getItem('tax-planner-storage')
+            if (!data) {
+                mostrarResultado('Nenhum dado encontrado para backup', 'error')
+                return
+            }
+
+            const blob = new Blob([data], { type: 'application/json' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `backup-planejador-${new Date().toISOString().split('T')[0]}.json`
+            a.click()
+            URL.revokeObjectURL(url)
+
+            mostrarResultado('✅ Backup baixado com sucesso!', 'success')
+        }
+
+        function mostrarResultado(mensagem, tipo) {
+            const div = document.getElementById('resultado')
+            div.innerHTML = mensagem
+            div.className = tipo
+            div.style.display = 'block'
+        }
+    </script>
+</body>
+</html>

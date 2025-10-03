@@ -161,14 +161,40 @@ export function parseCSV(
 }
 
 /**
- * Lê arquivo CSV do input file com detecção de encoding
+ * Lê arquivo CSV do input file com múltiplas tentativas de encoding
  */
 export function lerArquivoCSV(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     
     reader.onload = (e) => {
-      let content = e.target?.result as string
+      const arrayBuffer = e.target?.result as ArrayBuffer
+      const bytes = new Uint8Array(arrayBuffer)
+      
+      // Tenta decodificar com diferentes encodings
+      let content = ''
+      
+      // 1. Tenta UTF-8
+      try {
+        const decoderUTF8 = new TextDecoder('utf-8', { fatal: true })
+        content = decoderUTF8.decode(bytes)
+      } catch {
+        // 2. Se falhar, tenta ISO-8859-1 (Latin1)
+        try {
+          const decoderLatin1 = new TextDecoder('iso-8859-1')
+          content = decoderLatin1.decode(bytes)
+        } catch {
+          // 3. Se falhar, tenta Windows-1252
+          try {
+            const decoderWin = new TextDecoder('windows-1252')
+            content = decoderWin.decode(bytes)
+          } catch {
+            // 4. Último recurso: força UTF-8 não-fatal
+            const decoderUTF8NonFatal = new TextDecoder('utf-8', { fatal: false })
+            content = decoderUTF8NonFatal.decode(bytes)
+          }
+        }
+      }
       
       // Remove BOM (Byte Order Mark) se presente
       if (content.charCodeAt(0) === 0xFEFF) {
@@ -182,8 +208,8 @@ export function lerArquivoCSV(file: File): Promise<string> {
       reject(new Error("Erro ao ler arquivo"))
     }
     
-    // Tenta ler com UTF-8 primeiro
-    reader.readAsText(file, "UTF-8")
+    // Lê como ArrayBuffer para ter controle total do encoding
+    reader.readAsArrayBuffer(file)
   })
 }
 

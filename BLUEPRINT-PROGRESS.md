@@ -52,6 +52,31 @@
    - ✅ Breadcrumbs em todas as páginas
    - ✅ Navegação entre empresa → cenários → edição
 
+### Fase 4: Relatórios e Análises ✅ COMPLETA
+
+#### ✅ Completado:
+
+1. **Tipos e Hooks**
+   - ✅ `src/types/relatorio.ts` - Tipos estendidos (DadosGraficoEvolucao, DadosGraficoComposicao, DadosGraficoMargem, LinhaRelatorioAnual)
+   - ✅ `src/hooks/use-relatorios.ts` - Hook para processar cenários e gerar dados consolidados
+
+2. **Componentes de Gráficos (Recharts)**
+   - ✅ `src/components/relatorios/grafico-evolucao.tsx` - LineChart com evolução temporal (receita, impostos, lucro)
+   - ✅ `src/components/relatorios/grafico-composicao.tsx` - PieChart com breakdown de impostos
+   - ✅ `src/components/relatorios/grafico-margem.tsx` - BarChart com margens de lucratividade
+
+3. **Tabelas e Exportação**
+   - ✅ `src/components/relatorios/tabela-consolidada.tsx` - Tabela detalhada mensal com totais e médias
+   - ✅ `src/components/relatorios/botoes-exportacao.tsx` - Exportação Excel (xlsx) e PDF (placeholder)
+
+4. **Página Principal**
+   - ✅ `/app/empresas/[id]/relatorios/page.tsx` - Dashboard de relatórios com:
+     - Cards de resumo (Receita Total, Total Impostos, Lucro Líquido, Margem Bruta)
+     - Seletor de ano
+     - 3 gráficos interativos (Recharts)
+     - Tabela consolidada anual
+     - Botões de exportação
+
 ---
 
 ## 📋 Próximos Passos

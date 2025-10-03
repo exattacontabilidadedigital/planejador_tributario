@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEmpresasStore } from "@/stores/empresas-store";
+import { MigracaoInicial } from "@/components/migracao-inicial";
 
 export default function Home() {
   const router = useRouter();
   const { empresas, empresaAtual } = useEmpresasStore();
+  const [mostrarMigracao, setMostrarMigracao] = useState(false);
 
   useEffect(() => {
     // Se tem empresa atual, vai para o dashboard dela
@@ -17,11 +19,30 @@ export default function Home() {
     else if (empresas.length > 0) {
       router.push("/empresas");
     }
-    // Se não tem empresas, vai para lista (que mostrará tela vazia)
+    // Se não tem empresas, mostra tela de migração
     else {
-      router.push("/empresas");
+      setMostrarMigracao(true);
     }
-  }, []);
+  }, [empresas.length, empresaAtual, router]);
+
+  // Mostrar tela de migração
+  if (mostrarMigracao) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
+        <div className="w-full max-w-2xl">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold mb-2">
+              Sistema de Planejamento Tributário
+            </h1>
+            <p className="text-muted-foreground">
+              Bem-vindo ao sistema v2.0 com suporte multi-empresa
+            </p>
+          </div>
+          <MigracaoInicial />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">

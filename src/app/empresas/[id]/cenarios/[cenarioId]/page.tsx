@@ -1,15 +1,19 @@
 "use client"
 
-import { use, useEffect } from "react"
+import { use, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useEmpresasStore } from "@/stores/empresas-store"
 import { useCenariosStore } from "@/stores/cenarios-store"
 import { useTaxStore } from "@/hooks/use-tax-store"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, CheckCircle2, Save } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { ArrowLeft, CheckCircle2, Save, Edit2 } from "lucide-react"
 import { ConfigPanel } from "@/components/config/config-panel"
 import { DRETable } from "@/components/dre/dre-table"
 import { MemoriaPISCOFINSTable } from "@/components/memoria/memoria-pis-cofins-table"
+import { MemoriaICMSTable } from "@/components/memoria/memoria-icms-table"
+import { MemoriaIRPJCSLLTable } from "@/components/memoria/memoria-irpj-csll-table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
@@ -29,10 +33,17 @@ export default function EditarCenarioPage({
   const empresa = getEmpresa(id)
   const cenario = getCenario(cenarioId)
 
+  // Estados para edição de nome e descrição
+  const [editandoNome, setEditandoNome] = useState(false)
+  const [nomeEditavel, setNomeEditavel] = useState(cenario?.nome || "")
+  const [descricaoEditavel, setDescricaoEditavel] = useState(cenario?.descricao || "")
+
   // Carrega config do cenário ao montar
   useEffect(() => {
     if (cenario) {
       updateConfig(cenario.config)
+      setNomeEditavel(cenario.nome)
+      setDescricaoEditavel(cenario.descricao || "")
     }
   }, [cenarioId])
 
@@ -46,27 +57,35 @@ export default function EditarCenarioPage({
   }
 
   const handleSalvar = () => {
-    // Atualiza o cenário com a config atual
+    // Atualiza o cenário com a config atual e informações editadas
     updateCenario(cenarioId, {
+      nome: nomeEditavel,
+      descricao: descricaoEditavel,
       config,
     })
 
+    setEditandoNome(false)
+
     toast({
       title: "Cenário salvo!",
-      description: `${cenario.nome} foi atualizado.`,
+      description: `${nomeEditavel} foi atualizado.`,
     })
   }
 
   const handleSalvarEAprovar = () => {
     // Atualiza e aprova
     updateCenario(cenarioId, {
+      nome: nomeEditavel,
+      descricao: descricaoEditavel,
       config,
     })
     aprovarCenario(cenarioId)
 
+    setEditandoNome(false)
+
     toast({
       title: "Cenário aprovado!",
-      description: `${cenario.nome} foi salvo e aprovado.`,
+      description: `${nomeEditavel} foi salvo e aprovado.`,
     })
 
     router.push(`/empresas/${id}/cenarios`)
@@ -100,20 +119,50 @@ export default function EditarCenarioPage({
         </Button>
         
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex-1 mr-4">
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">
-                {cenario.nome}
-              </h1>
+              {editandoNome ? (
+                <Input
+                  value={nomeEditavel}
+                  onChange={(e) => setNomeEditavel(e.target.value)}
+                  className="text-3xl font-bold h-auto py-2 px-3 max-w-2xl"
+                  placeholder="Nome do cenário"
+                  autoFocus
+                />
+              ) : (
+                <h1 className="text-3xl font-bold">
+                  {nomeEditavel}
+                </h1>
+              )}
+              {!editandoNome && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setEditandoNome(true)}
+                  className="h-8 w-8"
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+              )}
               {getStatusBadge()}
             </div>
             <p className="text-muted-foreground mt-1">
               {empresa.nome} • {cenario.periodo.tipo} • {cenario.periodo.ano}
             </p>
-            {cenario.descricao && (
-              <p className="text-sm text-muted-foreground mt-2">
-                {cenario.descricao}
-              </p>
+            {editandoNome ? (
+              <Textarea
+                value={descricaoEditavel}
+                onChange={(e) => setDescricaoEditavel(e.target.value)}
+                className="mt-2 max-w-2xl"
+                placeholder="Descrição do cenário (opcional)"
+                rows={2}
+              />
+            ) : (
+              descricaoEditavel && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  {descricaoEditavel}
+                </p>
+              )
             )}
           </div>
           
@@ -134,23 +183,25 @@ export default function EditarCenarioPage({
 
       {/* Abas */}
       <Tabs defaultValue="configuracoes" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
-          <TabsTrigger value="dre">DRE</TabsTrigger>
-          <TabsTrigger value="pis-cofins">PIS/COFINS</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto">
+          <TabsTrigger value="configuracoes">⚙️ Configurações</TabsTrigger>
+          <TabsTrigger value="icms">📦 ICMS</TabsTrigger>
+          <TabsTrigger value="pis-cofins">📊 PIS/COFINS</TabsTrigger>
+          <TabsTrigger value="irpj-csll">💼 IRPJ/CSLL</TabsTrigger>
+          <TabsTrigger value="dre">📈 DRE</TabsTrigger>
         </TabsList>
 
         <TabsContent value="configuracoes" className="mt-6">
           <ConfigPanel />
         </TabsContent>
 
-        <TabsContent value="dre" className="mt-6">
+        <TabsContent value="icms" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Demonstração do Resultado do Exercício</CardTitle>
+              <CardTitle>Memória de Cálculo ICMS</CardTitle>
             </CardHeader>
             <CardContent>
-              <DRETable />
+              <MemoriaICMSTable />
             </CardContent>
           </Card>
         </TabsContent>
@@ -162,6 +213,28 @@ export default function EditarCenarioPage({
             </CardHeader>
             <CardContent>
               <MemoriaPISCOFINSTable />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="irpj-csll" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Memória de Cálculo IRPJ/CSLL</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <MemoriaIRPJCSLLTable />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="dre" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Demonstração do Resultado do Exercício</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DRETable />
             </CardContent>
           </Card>
         </TabsContent>

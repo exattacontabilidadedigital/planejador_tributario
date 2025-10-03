@@ -2,6 +2,7 @@
 
 import { use, useState } from "react"
 import { useRouter } from "next/navigation"
+import { format } from "date-fns"
 import { useEmpresasStore } from "@/stores/empresas-store"
 import { useCenariosStore } from "@/stores/cenarios-store"
 import { Button } from "@/components/ui/button"
@@ -279,13 +280,13 @@ export default function CenariosPage({
                       {getStatusBadge(cenario.status)}
                     </CardTitle>
                     <CardDescription className="mt-2 space-y-1">
-                      {cenario.descricao && <div>{cenario.descricao}</div>}
-                      <div className="flex items-center gap-4 text-xs">
+                      {cenario.descricao && <span className="block">{cenario.descricao}</span>}
+                      <span className="flex items-center gap-4 text-xs">
                         <span>Período: {cenario.periodo.tipo}</span>
                         <span>Ano: {cenario.periodo.ano}</span>
                         {cenario.periodo.mes && <span>Mês: {cenario.periodo.mes}</span>}
-                        <span>Atualizado: {new Date(cenario.atualizadoEm).toLocaleDateString()}</span>
-                      </div>
+                        <span>Atualizado: {format(new Date(cenario.atualizadoEm), 'dd/MM/yyyy')}</span>
+                      </span>
                     </CardDescription>
                   </div>
 

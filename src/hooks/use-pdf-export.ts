@@ -170,19 +170,22 @@ export function usePDFExport() {
       
       const finalY = (doc as any).lastAutoTable.finalY || 70
       
+      // Montar linhas de créditos PIS dinamicamente
+      const creditosPISBody = [
+        ["Compras", formatCurrency(memoriaPISCOFINS.creditoPISCompras.base), formatPercentage(memoriaPISCOFINS.creditoPISCompras.aliquota), formatCurrency(memoriaPISCOFINS.creditoPISCompras.valor)],
+        // Créditos sobre despesas dinâmicas
+        ...(memoriaPISCOFINS.despesasComCredito || []).map(despesa => [
+          despesa.descricao,
+          formatCurrency(despesa.valor),
+          formatPercentage(memoriaPISCOFINS.creditoPISDespesas.aliquota),
+          formatCurrency((despesa.valor * memoriaPISCOFINS.creditoPISDespesas.aliquota) / 100)
+        ])
+      ]
+      
       autoTable(doc, {
         startY: finalY + 5,
         head: [["Créditos PIS", "Base", "Alíquota", "Valor"]],
-        body: [
-          ["Compras", formatCurrency(memoriaPISCOFINS.creditoPISCompras.base), "1,65%", formatCurrency(memoriaPISCOFINS.creditoPISCompras.valor)],
-          ["Energia", formatCurrency(memoriaPISCOFINS.creditoPISEnergia.base), "1,65%", formatCurrency(memoriaPISCOFINS.creditoPISEnergia.valor)],
-          ["Aluguéis", formatCurrency(memoriaPISCOFINS.creditoPISAluguel.base), "1,65%", formatCurrency(memoriaPISCOFINS.creditoPISAluguel.valor)],
-          ["Arrendamento", formatCurrency(memoriaPISCOFINS.creditoPISArrendamento.base), "1,65%", formatCurrency(memoriaPISCOFINS.creditoPISArrendamento.valor)],
-          ["Frete", formatCurrency(memoriaPISCOFINS.creditoPISFrete.base), "1,65%", formatCurrency(memoriaPISCOFINS.creditoPISFrete.valor)],
-          ["Depreciação", formatCurrency(memoriaPISCOFINS.creditoPISDepreciacao.base), "1,65%", formatCurrency(memoriaPISCOFINS.creditoPISDepreciacao.valor)],
-          ["Combustíveis", formatCurrency(memoriaPISCOFINS.creditoPISCombustivel.base), "1,65%", formatCurrency(memoriaPISCOFINS.creditoPISCombustivel.valor)],
-          ["Vale Transporte", formatCurrency(memoriaPISCOFINS.creditoPISValeTransporte.base), "1,65%", formatCurrency(memoriaPISCOFINS.creditoPISValeTransporte.valor)],
-        ],
+        body: creditosPISBody,
         foot: [["PIS A PAGAR", "", "", formatCurrency(memoriaPISCOFINS.pisAPagar)]],
         theme: "grid",
         headStyles: { fillColor: [34, 197, 94] },

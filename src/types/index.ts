@@ -168,76 +168,17 @@ export interface MemoriaPISCOFINS {
     aliquota: number;
     valor: number;
   };
-  creditoPISEnergia: {
+  creditoPISDespesas: {
     base: number;
     aliquota: number;
     valor: number;
   };
-  creditoCOFINSEnergia: {
+  creditoCOFINSDespesas: {
     base: number;
     aliquota: number;
     valor: number;
   };
-  creditoPISAluguel: {
-    base: number;
-    aliquota: number;
-    valor: number;
-  };
-  creditoCOFINSAluguel: {
-    base: number;
-    aliquota: number;
-    valor: number;
-  };
-  creditoPISArrendamento: {
-    base: number;
-    aliquota: number;
-    valor: number;
-  };
-  creditoCOFINSArrendamento: {
-    base: number;
-    aliquota: number;
-    valor: number;
-  };
-  creditoPISFrete: {
-    base: number;
-    aliquota: number;
-    valor: number;
-  };
-  creditoCOFINSFrete: {
-    base: number;
-    aliquota: number;
-    valor: number;
-  };
-  creditoPISDepreciacao: {
-    base: number;
-    aliquota: number;
-    valor: number;
-  };
-  creditoCOFINSDepreciacao: {
-    base: number;
-    aliquota: number;
-    valor: number;
-  };
-  creditoPISCombustivel: {
-    base: number;
-    aliquota: number;
-    valor: number;
-  };
-  creditoCOFINSCombustivel: {
-    base: number;
-    aliquota: number;
-    valor: number;
-  };
-  creditoPISValeTransporte: {
-    base: number;
-    aliquota: number;
-    valor: number;
-  };
-  creditoCOFINSValeTransporte: {
-    base: number;
-    aliquota: number;
-    valor: number;
-  };
+  despesasComCredito: DespesaItem[];
 
   // Totais
   totalDebitosPIS: number;

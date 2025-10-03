@@ -259,48 +259,22 @@ export const MemoriaPISCOFINSTable = React.memo(function MemoriaPISCOFINSTable()
                   <TableCell className="text-right">{formatPercentage(memoria.creditoPISCompras.aliquota)}</TableCell>
                   <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoPISCompras.valor)}</TableCell>
                 </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Energia Elétrica</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoPISEnergia.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoPISEnergia.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoPISEnergia.valor)}</TableCell>
-                </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Aluguéis</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoPISAluguel.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoPISAluguel.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoPISAluguel.valor)}</TableCell>
-                </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Arrendamento</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoPISArrendamento.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoPISArrendamento.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoPISArrendamento.valor)}</TableCell>
-                </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Frete</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoPISFrete.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoPISFrete.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoPISFrete.valor)}</TableCell>
-                </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Depreciação</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoPISDepreciacao.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoPISDepreciacao.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoPISDepreciacao.valor)}</TableCell>
-                </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Combustíveis</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoPISCombustivel.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoPISCombustivel.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoPISCombustivel.valor)}</TableCell>
-                </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Vale Transporte</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoPISValeTransporte.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoPISValeTransporte.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoPISValeTransporte.valor)}</TableCell>
-                </TableRow>
+                
+                {/* Créditos sobre despesas dinâmicas COM crédito */}
+                {memoria.despesasComCredito && memoria.despesasComCredito.length > 0 ? (
+                  memoria.despesasComCredito.map((despesa) => {
+                    const creditoPIS = (despesa.valor * memoria.creditoPISDespesas.aliquota) / 100
+                    return (
+                      <TableRow key={despesa.id} className="bg-green-50 dark:bg-green-950/20">
+                        <TableCell className="font-medium">Crédito sobre {despesa.descricao}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(despesa.valor)}</TableCell>
+                        <TableCell className="text-right">{formatPercentage(memoria.creditoPISDespesas.aliquota)}</TableCell>
+                        <TableCell className="text-right font-semibold">{formatCurrency(creditoPIS)}</TableCell>
+                      </TableRow>
+                    )
+                  })
+                ) : null}
+                
                 <TableRow className="bg-green-100 dark:bg-green-900/30 font-bold">
                   <TableCell colSpan={3}>TOTAL DE CRÉDITOS PIS</TableCell>
                   <TableCell className="text-right text-green-600 dark:text-green-400">{formatCurrency(memoria.totalCreditosPIS)}</TableCell>
@@ -402,48 +376,22 @@ export const MemoriaPISCOFINSTable = React.memo(function MemoriaPISCOFINSTable()
                   <TableCell className="text-right">{formatPercentage(memoria.creditoCOFINSCompras.aliquota)}</TableCell>
                   <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoCOFINSCompras.valor)}</TableCell>
                 </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Energia Elétrica</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoCOFINSEnergia.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoCOFINSEnergia.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoCOFINSEnergia.valor)}</TableCell>
-                </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Aluguéis</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoCOFINSAluguel.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoCOFINSAluguel.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoCOFINSAluguel.valor)}</TableCell>
-                </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Arrendamento</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoCOFINSArrendamento.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoCOFINSArrendamento.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoCOFINSArrendamento.valor)}</TableCell>
-                </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Frete</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoCOFINSFrete.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoCOFINSFrete.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoCOFINSFrete.valor)}</TableCell>
-                </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Depreciação</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoCOFINSDepreciacao.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoCOFINSDepreciacao.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoCOFINSDepreciacao.valor)}</TableCell>
-                </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Combustíveis</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoCOFINSCombustivel.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoCOFINSCombustivel.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoCOFINSCombustivel.valor)}</TableCell>
-                </TableRow>
-                <TableRow className="bg-green-50 dark:bg-green-950/20">
-                  <TableCell className="font-medium">Crédito sobre Vale Transporte</TableCell>
-                  <TableCell className="text-right">{formatCurrency(memoria.creditoCOFINSValeTransporte.base)}</TableCell>
-                  <TableCell className="text-right">{formatPercentage(memoria.creditoCOFINSValeTransporte.aliquota)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(memoria.creditoCOFINSValeTransporte.valor)}</TableCell>
-                </TableRow>
+                
+                {/* Créditos sobre despesas dinâmicas COM crédito */}
+                {memoria.despesasComCredito && memoria.despesasComCredito.length > 0 ? (
+                  memoria.despesasComCredito.map((despesa) => {
+                    const creditoCOFINS = (despesa.valor * memoria.creditoCOFINSDespesas.aliquota) / 100
+                    return (
+                      <TableRow key={despesa.id} className="bg-green-50 dark:bg-green-950/20">
+                        <TableCell className="font-medium">Crédito sobre {despesa.descricao}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(despesa.valor)}</TableCell>
+                        <TableCell className="text-right">{formatPercentage(memoria.creditoCOFINSDespesas.aliquota)}</TableCell>
+                        <TableCell className="text-right font-semibold">{formatCurrency(creditoCOFINS)}</TableCell>
+                      </TableRow>
+                    )
+                  })
+                ) : null}
+                
                 <TableRow className="bg-green-100 dark:bg-green-900/30 font-bold">
                   <TableCell colSpan={3}>TOTAL DE CRÉDITOS COFINS</TableCell>
                   <TableCell className="text-right text-green-600 dark:text-green-400">{formatCurrency(memoria.totalCreditosCOFINS)}</TableCell>

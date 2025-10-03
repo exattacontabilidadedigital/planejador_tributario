@@ -14,6 +14,12 @@ export default function EmpresasPage() {
   const { empresas, setEmpresaAtual } = useEmpresasStore()
   const [busca, setBusca] = useState("")
 
+  // Debug: verificar empresas carregadas
+  useEffect(() => {
+    console.log("📊 Total de empresas:", empresas.length)
+    console.log("📋 Empresas carregadas:", empresas)
+  }, [empresas])
+
   const empresasFiltradas = empresas.filter((empresa) =>
     empresa.nome.toLowerCase().includes(busca.toLowerCase()) ||
     empresa.cnpj.includes(busca) ||
@@ -94,10 +100,10 @@ export default function EmpresasPage() {
                   <span className="line-clamp-2">{empresa.nome}</span>
                 </CardTitle>
                 <CardDescription className="space-y-1">
-                  <div><strong>CNPJ:</strong> {empresa.cnpj}</div>
-                  <div><strong>Razão Social:</strong> {empresa.razaoSocial}</div>
-                  <div><strong>Regime:</strong> {empresa.regimeTributario}</div>
-                  <div><strong>UF:</strong> {empresa.uf}</div>
+                  <span className="block"><strong>CNPJ:</strong> {empresa.cnpj}</span>
+                  <span className="block"><strong>Razão Social:</strong> {empresa.razaoSocial}</span>
+                  <span className="block"><strong>Regime:</strong> {empresa.regimeTributario}</span>
+                  <span className="block"><strong>UF:</strong> {empresa.uf}</span>
                 </CardDescription>
               </CardHeader>
               <CardContent>

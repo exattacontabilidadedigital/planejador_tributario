@@ -52,7 +52,9 @@ export default function NovaEmpresaPage() {
       return
     }
     
+    console.log("💾 Salvando empresa:", formData)
     const novaEmpresa = addEmpresa(formData)
+    console.log("✅ Empresa salva:", novaEmpresa)
     
     toast({
       title: "Empresa criada!",

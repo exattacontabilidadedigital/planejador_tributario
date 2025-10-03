@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   DollarSign,
   BarChart3,
+  Edit2,
 } from "lucide-react"
 import Link from "next/link"
 import {
@@ -144,15 +145,20 @@ export default function EmpresaDashboardPage({
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Building2 className="h-8 w-8" />
               {empresa.nome}
+              <Link href={`/empresas/${id}/configuracoes`}>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+              </Link>
             </h1>
             <p className="text-muted-foreground mt-1">
               CNPJ: {empresa.cnpj} • {empresa.razaoSocial}
             </p>
           </div>
-          <Link href={`/empresas/${id}/configuracoes`}>
-            <Button variant="outline" className="gap-2">
-              <Settings className="h-4 w-4" />
-              Configurações
+          <Link href={`/empresas/${id}/cenarios/novo`}>
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Adicionar Cenário
             </Button>
           </Link>
         </div>

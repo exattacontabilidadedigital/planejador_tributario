@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useEmpresasStore } from "@/stores/empresas-store"
 import { Button } from "@/components/ui/button"
@@ -48,22 +48,44 @@ export default function ConfiguracoesEmpresaPage({
   const empresa = getEmpresa(id)
 
   const [formData, setFormData] = useState({
-    nome: empresa?.nome || "",
-    cnpj: empresa?.cnpj || "",
-    razaoSocial: empresa?.razaoSocial || "",
-    regimeTributario: empresa?.regimeTributario || "lucro-real" as RegimeTributario,
-    setor: empresa?.setor || "comercio" as SetorEmpresa,
-    uf: empresa?.uf || "SP",
-    municipio: empresa?.municipio || "",
-    inscricaoEstadual: empresa?.inscricaoEstadual || "",
-    inscricaoMunicipal: empresa?.inscricaoMunicipal || "",
+    nome: "",
+    cnpj: "",
+    razaoSocial: "",
+    regimeTributario: "lucro-real" as RegimeTributario,
+    setor: "comercio" as SetorEmpresa,
+    uf: "SP",
+    municipio: "",
+    inscricaoEstadual: "",
+    inscricaoMunicipal: "",
   })
 
+  // Inicializar form data quando empresa carregar
+  useEffect(() => {
+    if (empresa) {
+      setFormData({
+        nome: empresa.nome,
+        cnpj: empresa.cnpj,
+        razaoSocial: empresa.razaoSocial,
+        regimeTributario: empresa.regimeTributario,
+        setor: empresa.setor,
+        uf: empresa.uf,
+        municipio: empresa.municipio || "",
+        inscricaoEstadual: empresa.inscricaoEstadual || "",
+        inscricaoMunicipal: empresa.inscricaoMunicipal || "",
+      })
+    }
+  }, [empresa])
+
+  // Se empresa não existe, mostrar mensagem
   if (!empresa) {
     return (
       <div className="container mx-auto py-8">
-        <p>Empresa não encontrada</p>
-        <Button onClick={() => router.push("/empresas")}>Voltar</Button>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-lg mb-4">Empresa não encontrada</p>
+            <Button onClick={() => router.push("/empresas")}>Voltar para Empresas</Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }

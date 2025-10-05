@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select"
 import { ArrowLeft, BarChart3, TrendingUp, Filter, X } from "lucide-react"
 import Link from "next/link"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { GraficoEvolucao } from "@/components/relatorios/grafico-evolucao"
 import { GraficoComposicao } from "@/components/relatorios/grafico-composicao"
 import { GraficoEvolucaoFinanceira } from "@/components/relatorios/grafico-evolucao-financeira"
@@ -57,6 +58,7 @@ export default function RelatoriosPage({
   )
   const [dropdownAberto, setDropdownAberto] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const relatoriosRef = useRef<HTMLDivElement>(null)
   
   // Marcar componente como montado e atualizar ano
   useEffect(() => {
@@ -214,10 +216,14 @@ export default function RelatoriosPage({
                   totais={totais}
                   nomeEmpresa={empresa.nome}
                   ano={anoSelecionado}
+                  containerRef={relatoriosRef}
                 />
               )}
             </>
           )}
+          
+          {/* Theme Toggle */}
+          <ThemeToggle />
         </div>
       </div>
 
@@ -266,7 +272,7 @@ export default function RelatoriosPage({
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6" ref={relatoriosRef}>
           {/* Cards de Resumo */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>

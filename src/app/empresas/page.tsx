@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Plus, Search, Loader2, AlertCircle } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { useState } from "react"
 
 export default function EmpresasPage() {
@@ -70,10 +71,13 @@ export default function EmpresasPage() {
             Gerencie suas empresas e planejamentos tributários
           </p>
         </div>
-        <Button onClick={handleNovaEmpresa} size="lg" className="gap-2" disabled={isLoading}>
-          <Plus className="h-5 w-5" />
-          Nova Empresa
-        </Button>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <Button onClick={handleNovaEmpresa} size="lg" className="gap-2" disabled={isLoading}>
+            <Plus className="h-5 w-5" />
+            Nova Empresa
+          </Button>
+        </div>
       </div>
 
       {/* Busca */}

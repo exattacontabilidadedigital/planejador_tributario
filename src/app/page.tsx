@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEmpresas } from "@/hooks/use-empresas";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { MigracaoInicial } from "@/components/migracao-inicial";
 
 export default function Home() {
@@ -34,6 +35,9 @@ export default function Home() {
   if (error || mostrarMigracao) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
+        <div className="fixed top-4 right-4">
+          <ThemeToggle />
+        </div>
         <div className="w-full max-w-2xl">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-2">

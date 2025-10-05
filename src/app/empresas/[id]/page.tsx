@@ -25,6 +25,7 @@ import {
   Edit2,
 } from "lucide-react"
 import Link from "next/link"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   LineChart,
   Line,
@@ -229,12 +230,15 @@ export default function EmpresaDashboardPage({
               CNPJ: {empresa.cnpj} • {empresa.razaoSocial}
             </p>
           </div>
-          <Link href={`/empresas/${id}/cenarios/novo`}>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Adicionar Cenário
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Link href={`/empresas/${id}/cenarios/novo`}>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Adicionar Cenário
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 

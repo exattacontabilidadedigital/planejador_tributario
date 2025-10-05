@@ -28,6 +28,7 @@ import {
   Trash2,
 } from "lucide-react"
 import Link from "next/link"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -251,12 +252,15 @@ export default function CenariosPage({
               Gerencie os cenários de planejamento tributário
             </p>
           </div>
-          <Link href={`/empresas/${id}/cenarios/novo`}>
-            <Button size="lg" className="gap-2">
-              <Plus className="h-5 w-5" />
-              Novo Cenário
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Link href={`/empresas/${id}/cenarios/novo`}>
+              <Button size="lg" className="gap-2">
+                <Plus className="h-5 w-5" />
+                Novo Cenário
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 

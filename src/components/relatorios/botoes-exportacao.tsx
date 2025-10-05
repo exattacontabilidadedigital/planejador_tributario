@@ -133,95 +133,240 @@ export function BotoesExportacao({ linhas, totais, nomeEmpresa, ano, containerRe
       const pdf = new jsPDF('p', 'mm', 'a4')
       const pageWidth = pdf.internal.pageSize.getWidth()
       const pageHeight = pdf.internal.pageSize.getHeight()
-      let yPosition = 20
+      const margin = 15
+      let yPosition = margin
 
-      // Cabeçalho
-      pdf.setFontSize(20)
+      // Função para adicionar nova página se necessário
+      const checkPageBreak = (neededSpace: number) => {
+        if (yPosition + neededSpace > pageHeight - margin) {
+          pdf.addPage()
+          yPosition = margin
+          return true
+        }
+        return false
+      }
+
+      // === CABEÇALHO ===
+      pdf.setFontSize(24)
       pdf.setFont(undefined, 'bold')
-      pdf.text('Relatório Tributário Completo', pageWidth / 2, yPosition, { align: 'center' })
+      pdf.text('Relatórios Tributários', pageWidth / 2, yPosition, { align: 'center' })
       
-      yPosition += 10
-      pdf.setFontSize(14)
-      pdf.text(`${nomeEmpresa} - ${ano}`, pageWidth / 2, yPosition, { align: 'center' })
+      yPosition += 12
+      pdf.setFontSize(16)
+      pdf.setFont(undefined, 'normal')
+      pdf.text(`${nomeEmpresa}`, pageWidth / 2, yPosition, { align: 'center' })
       
-      yPosition += 10
-      pdf.setFontSize(10)
-      pdf.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth / 2, yPosition, { align: 'center' })
+      yPosition += 8
+      pdf.setFontSize(12)
+      pdf.text(`Ano: ${ano} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth / 2, yPosition, { align: 'center' })
       
       yPosition += 20
 
-      // Capturar gráficos se possível
-      const graficos = containerRef.current.querySelectorAll('[data-testid*="recharts"], .recharts-wrapper, canvas')
+      // === CARDS DE RESUMO (4 cards em linha) ===
+      pdf.setFontSize(14)
+      pdf.setFont(undefined, 'bold')
+      pdf.text('Resumo Executivo', margin, yPosition)
+      yPosition += 12
+
+      const cardWidth = (pageWidth - 2 * margin - 15) / 4 // 4 cards com espaçamento
+      const cardHeight = 25
       
-      if (graficos.length > 0) {
+      // Calcular valores dos cards
+      const totalImpostos = totais.icmsTotal + totais.pisTotal + totais.cofinsTotal + totais.irpjTotal + totais.csllTotal + totais.issTotal
+
+      const cards = [
+        {
+          title: 'Receita Total',
+          value: `R$ ${totais.receitaBruta.toLocaleString('pt-BR')}`,
+          subtitle: `${linhas.length} ${linhas.length === 1 ? 'mês' : 'meses'} consolidados`
+        },
+        {
+          title: 'Total Impostos',
+          value: `R$ ${totalImpostos.toLocaleString('pt-BR')}`,
+          subtitle: `Carga: ${totais.cargaTributariaEfetiva.toFixed(2)}%`
+        },
+        {
+          title: 'Lucro Líquido',
+          value: `R$ ${totais.lucroLiquido.toLocaleString('pt-BR')}`,
+          subtitle: `Margem: ${totais.margemLiquida.toFixed(2)}%`
+        },
+        {
+          title: 'Margem Bruta',
+          value: `${totais.margemBruta.toFixed(2)}%`,
+          subtitle: `Lucro Bruto: R$ ${totais.lucroBruto.toLocaleString('pt-BR')}`
+        }
+      ]
+
+      // Desenhar os cards
+      cards.forEach((card, index) => {
+        const x = margin + (cardWidth + 5) * index
+        
+        // Fundo do card (cinza claro)
+        pdf.setFillColor(248, 250, 252)
+        pdf.rect(x, yPosition - 2, cardWidth, cardHeight, 'F')
+        
+        // Borda do card
+        pdf.setDrawColor(229, 231, 235)
+        pdf.rect(x, yPosition - 2, cardWidth, cardHeight, 'S')
+        
+        // Título do card
+        pdf.setFontSize(8)
+        pdf.setFont(undefined, 'normal')
+        pdf.setTextColor(107, 114, 128)
+        pdf.text(card.title, x + 2, yPosition + 3)
+        
+        // Valor principal
         pdf.setFontSize(12)
         pdf.setFont(undefined, 'bold')
-        pdf.text('Gráficos e Análises', 20, yPosition)
-        yPosition += 15
+        pdf.setTextColor(17, 24, 39)
+        pdf.text(card.value, x + 2, yPosition + 10)
+        
+        // Subtítulo
+        pdf.setFontSize(7)
+        pdf.setFont(undefined, 'normal')
+        pdf.setTextColor(107, 114, 128)
+        pdf.text(card.subtitle, x + 2, yPosition + 17)
+      })
 
-        for (let i = 0; i < Math.min(graficos.length, 3); i++) {
-          const grafico = graficos[i] as HTMLElement
+      yPosition += cardHeight + 15
+
+      // === GRÁFICOS LADO A LADO ===
+      checkPageBreak(80)
+      
+      pdf.setFontSize(14)
+      pdf.setFont(undefined, 'bold')
+      pdf.setTextColor(17, 24, 39)
+      pdf.text('Análises Gráficas', margin, yPosition)
+      yPosition += 12
+
+      // Capturar os dois primeiros gráficos (Evolução e Composição)
+      const graficos = containerRef.current.querySelectorAll('[class*="recharts"], .recharts-wrapper')
+      
+      if (graficos.length >= 2) {
+        const graficoWidth = (pageWidth - 2 * margin - 10) / 2
+        const graficoHeight = 60
+
+        try {
+          // Gráfico 1 - Evolução Mensal (esquerda)
+          const canvas1 = await html2canvas(graficos[0] as HTMLElement, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff'
+          })
           
-          try {
-            const canvas = await html2canvas(grafico, {
-              scale: 2,
-              useCORS: true,
-              backgroundColor: '#ffffff'
-            })
-            
-            const imgData = canvas.toDataURL('image/png')
-            const imgWidth = 160
-            const imgHeight = (canvas.height * imgWidth) / canvas.width
-            
-            if (yPosition + imgHeight > pageHeight - 30) {
-              pdf.addPage()
-              yPosition = 20
-            }
-            
-            pdf.addImage(imgData, 'PNG', 25, yPosition, imgWidth, imgHeight)
-            yPosition += imgHeight + 15
-          } catch (error) {
-            console.warn(`Erro ao capturar gráfico ${i}:`, error)
-          }
+          const imgData1 = canvas1.toDataURL('image/png')
+          pdf.addImage(imgData1, 'PNG', margin, yPosition, graficoWidth, graficoHeight)
+          
+          // Título do gráfico 1
+          pdf.setFontSize(10)
+          pdf.setFont(undefined, 'bold')
+          pdf.text('Evolução Mensal', margin, yPosition - 3)
+          
+          // Gráfico 2 - Composição de Impostos (direita)
+          const canvas2 = await html2canvas(graficos[1] as HTMLElement, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff'
+          })
+          
+          const imgData2 = canvas2.toDataURL('image/png')
+          pdf.addImage(imgData2, 'PNG', margin + graficoWidth + 10, yPosition, graficoWidth, graficoHeight)
+          
+          // Título do gráfico 2
+          pdf.text('Composição de Impostos', margin + graficoWidth + 10, yPosition - 3)
+          
+          yPosition += graficoHeight + 15
+          
+        } catch (error) {
+          console.warn('Erro ao capturar gráficos lado a lado:', error)
+          yPosition += 15
         }
-
-        // Nova página para tabela
-        pdf.addPage()
-        yPosition = 20
       }
 
-      // Tabela de dados (mesmo código da versão simples)
-      pdf.setFontSize(12)
-      pdf.setFont(undefined, 'bold')
-      pdf.text('Demonstrativo Mensal', 20, yPosition)
-      yPosition += 10
+      // === GRÁFICO DE EVOLUÇÃO FINANCEIRA (largura completa) ===
+      checkPageBreak(70)
+      
+      if (graficos.length >= 3) {
+        try {
+          const canvas3 = await html2canvas(graficos[2] as HTMLElement, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff'
+          })
+          
+          const imgData3 = canvas3.toDataURL('image/png')
+          const graficoWidthFull = pageWidth - 2 * margin
+          const graficoHeightFull = 55
+          
+          // Título
+          pdf.setFontSize(10)
+          pdf.setFont(undefined, 'bold')
+          pdf.text('Evolução Financeira Mensal', margin, yPosition)
+          yPosition += 5
+          
+          pdf.addImage(imgData3, 'PNG', margin, yPosition, graficoWidthFull, graficoHeightFull)
+          yPosition += graficoHeightFull + 20
+          
+        } catch (error) {
+          console.warn('Erro ao capturar gráfico de evolução financeira:', error)
+          yPosition += 15
+        }
+      }
 
-      // Cabeçalho da tabela
+      // === NOVA PÁGINA PARA A TABELA ===
+      pdf.addPage()
+      yPosition = margin
+
+      // === DEMONSTRATIVO CONSOLIDADO ===
+      pdf.setFontSize(16)
+      pdf.setFont(undefined, 'bold')
+      pdf.setTextColor(17, 24, 39)
+      pdf.text(`Demonstrativo Consolidado - ${ano}`, margin, yPosition)
+      yPosition += 8
+
+      pdf.setFontSize(10)
+      pdf.setFont(undefined, 'normal')
+      pdf.setTextColor(107, 114, 128)
+      pdf.text('Tabela detalhada com todos os valores mensais e totalizações', margin, yPosition)
+      yPosition += 15
+
+      // Cabeçalho da tabela com fundo
       pdf.setFontSize(8)
-      const headers = ['Mês', 'Receita', 'ICMS', 'PIS', 'COFINS', 'IRPJ', 'CSLL', 'ISS', 'Total Imp.', 'Lucro Líq.']
-      const colWidths = [15, 20, 15, 15, 15, 15, 15, 15, 20, 20]
-      let xPosition = 20
-
-      // Desenhar cabeçalho
       pdf.setFont(undefined, 'bold')
+      pdf.setTextColor(255, 255, 255)
+      
+      const headers = ['Mês', 'Receita', 'ICMS', 'PIS', 'COFINS', 'IRPJ', 'CSLL', 'ISS', 'Total Imp.', 'Lucro Líq.']
+      const colWidths = [18, 22, 16, 14, 16, 14, 14, 14, 22, 22]
+      let xPosition = margin
+
+      // Fundo do cabeçalho
+      pdf.setFillColor(59, 130, 246) // Azul
+      pdf.rect(margin, yPosition - 3, pageWidth - 2 * margin, 8, 'F')
+
+      // Texto do cabeçalho
       headers.forEach((header, index) => {
-        pdf.text(header, xPosition, yPosition)
+        pdf.text(header, xPosition + 1, yPosition + 2)
         xPosition += colWidths[index]
       })
-      yPosition += 7
+      yPosition += 10
 
-      // Linha separadora
-      pdf.line(20, yPosition - 2, pageWidth - 20, yPosition - 2)
-
-      // Dados
+      // Linhas de dados com alternância de cores
       pdf.setFont(undefined, 'normal')
-      linhas.forEach((linha) => {
+      linhas.forEach((linha, index) => {
         if (yPosition > pageHeight - 30) {
           pdf.addPage()
-          yPosition = 20
+          yPosition = margin + 15
         }
 
-        xPosition = 20
+        // Fundo alternado
+        if (index % 2 === 0) {
+          pdf.setFillColor(249, 250, 251)
+          pdf.rect(margin, yPosition - 3, pageWidth - 2 * margin, 8, 'F')
+        }
+
+        xPosition = margin
+        pdf.setTextColor(17, 24, 39)
+        
         const values = [
           linha.mes,
           `R$ ${linha.receita.toLocaleString('pt-BR')}`,
@@ -236,19 +381,26 @@ export function BotoesExportacao({ linhas, totais, nomeEmpresa, ano, containerRe
         ]
 
         values.forEach((value, index) => {
-          pdf.text(value, xPosition, yPosition)
+          pdf.text(value, xPosition + 1, yPosition + 2)
           xPosition += colWidths[index]
         })
-        yPosition += 6
+        yPosition += 8
       })
 
-      // Linha separadora antes dos totais
+      // Linha de separação antes dos totais
       yPosition += 3
-      pdf.line(20, yPosition - 2, pageWidth - 20, yPosition - 2)
+      pdf.setDrawColor(229, 231, 235)
+      pdf.line(margin, yPosition, pageWidth - margin, yPosition)
+      yPosition += 5
 
-      // Totais
+      // Linha de totais com destaque
+      pdf.setFillColor(243, 244, 246)
+      pdf.rect(margin, yPosition - 3, pageWidth - 2 * margin, 8, 'F')
+      
       pdf.setFont(undefined, 'bold')
-      xPosition = 20
+      pdf.setTextColor(17, 24, 39)
+      xPosition = margin
+      
       const totalValues = [
         'TOTAL',
         `R$ ${totais.receitaBruta.toLocaleString('pt-BR')}`,
@@ -258,56 +410,30 @@ export function BotoesExportacao({ linhas, totais, nomeEmpresa, ano, containerRe
         `R$ ${totais.irpjTotal.toLocaleString('pt-BR')}`,
         `R$ ${totais.csllTotal.toLocaleString('pt-BR')}`,
         `R$ ${totais.issTotal.toLocaleString('pt-BR')}`,
-        `R$ ${(totais.icmsTotal + totais.pisTotal + totais.cofinsTotal + totais.irpjTotal + totais.csllTotal + totais.issTotal).toLocaleString('pt-BR')}`,
+        `R$ ${totalImpostos.toLocaleString('pt-BR')}`,
         `R$ ${totais.lucroLiquido.toLocaleString('pt-BR')}`
       ]
 
       totalValues.forEach((value, index) => {
-        pdf.text(value, xPosition, yPosition)
+        pdf.text(value, xPosition + 1, yPosition + 2)
         xPosition += colWidths[index]
-      })
-      yPosition += 10
-
-      // Resumo executivo
-      if (yPosition > pageHeight - 50) {
-        pdf.addPage()
-        yPosition = 20
-      }
-
-      yPosition += 10
-      pdf.setFontSize(12)
-      pdf.setFont(undefined, 'bold')
-      pdf.text('Resumo Executivo', 20, yPosition)
-      yPosition += 10
-
-      pdf.setFontSize(10)
-      pdf.setFont(undefined, 'normal')
-      const resumo = [
-        `Receita Bruta Total: R$ ${totais.receitaBruta.toLocaleString('pt-BR')}`,
-        `Total de Impostos: R$ ${(totais.icmsTotal + totais.pisTotal + totais.cofinsTotal + totais.irpjTotal + totais.csllTotal + totais.issTotal).toLocaleString('pt-BR')}`,
-        `Lucro Líquido: R$ ${totais.lucroLiquido.toLocaleString('pt-BR')}`,
-        `Margem Líquida: ${totais.margemLiquida.toFixed(2)}%`,
-        `Carga Tributária Efetiva: ${totais.cargaTributariaEfetiva.toFixed(2)}%`
-      ]
-
-      resumo.forEach((linha) => {
-        pdf.text(linha, 20, yPosition)
-        yPosition += 7
       })
 
       // Rodapé
       pdf.setFontSize(8)
-      pdf.text(`Relatório Tributário - ${nomeEmpresa}`, pageWidth - 80, pageHeight - 10)
+      pdf.setFont(undefined, 'normal')
+      pdf.setTextColor(107, 114, 128)
+      pdf.text(`Relatório gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, pageHeight - 10, { align: 'center' })
 
       // Salvar PDF
       pdf.save(`${nomeEmpresa}_Relatorio_Completo_${ano}.pdf`)
 
       toast({
-        title: "PDF completo gerado com sucesso",
-        description: "O arquivo PDF com gráficos foi baixado com sucesso.",
+        title: "PDF estilizado gerado com sucesso",
+        description: "O relatório foi gerado seguindo o layout da página.",
       })
     } catch (error) {
-      console.error("Erro ao gerar PDF completo:", error)
+      console.error("Erro ao gerar PDF estilizado:", error)
       toast({
         title: "Erro na geração do PDF",
         description: "Tentando versão simplificada...",

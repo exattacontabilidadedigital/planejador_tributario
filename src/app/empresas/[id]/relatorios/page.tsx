@@ -361,23 +361,29 @@ export default function RelatoriosPage({
 
           {/* Gráficos */}
           <div className="grid gap-6 md:grid-cols-2">
-            <GraficoEvolucao
-              dados={dadosEvolucao}
-              titulo="Evolução Mensal"
-              descricao="Acompanhe a evolução da receita, impostos e lucro ao longo do ano"
-            />
-            <GraficoComposicao
-              dados={dadosComposicao}
-              titulo="Composição de Impostos"
-              descricao="Distribuição percentual dos impostos pagos"
-            />
+            <div id="grafico-evolucao">
+              <GraficoEvolucao
+                dados={dadosEvolucao}
+                titulo="Evolução Mensal"
+                descricao="Acompanhe a evolução da receita, impostos e lucro ao longo do ano"
+              />
+            </div>
+            <div id="grafico-composicao">
+              <GraficoComposicao
+                dados={dadosComposicao}
+                titulo="Composição de Impostos"
+                descricao="Distribuição percentual dos impostos pagos"
+              />
+            </div>
           </div>
 
-          <GraficoEvolucaoFinanceira
-            dados={dadosEvolucaoFinanceira}
-            titulo="Evolução Financeira Mensal"
-            descricao="Receita, lucro e impostos mês a mês ao longo do ano"
-          />
+          <div id="grafico-evolucao-financeira">
+            <GraficoEvolucaoFinanceira
+              dados={dadosEvolucaoFinanceira}
+              titulo="Evolução Financeira Mensal"
+              descricao="Receita, lucro e impostos mês a mês ao longo do ano"
+            />
+          </div>
 
           {/* Tabela Consolidada */}
           <TabelaConsolidada

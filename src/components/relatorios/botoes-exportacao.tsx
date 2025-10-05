@@ -130,6 +130,9 @@ export function BotoesExportacao({ linhas, totais, nomeEmpresa, ano, containerRe
         description: "Capturando gráficos e gerando relatório completo.",
       })
 
+      // Pequeno delay para garantir que os gráficos estejam renderizados
+      await new Promise(resolve => setTimeout(resolve, 500))
+
       const pdf = new jsPDF('p', 'mm', 'a4')
       const pageWidth = pdf.internal.pageSize.getWidth()
       const pageHeight = pdf.internal.pageSize.getHeight()
@@ -239,19 +242,22 @@ export function BotoesExportacao({ linhas, totais, nomeEmpresa, ano, containerRe
       pdf.text('Análises Gráficas', margin, yPosition)
       yPosition += 12
 
-      // Capturar os dois primeiros gráficos (Evolução e Composição)
-      const graficos = containerRef.current.querySelectorAll('[class*="recharts"], .recharts-wrapper')
+      // Capturar gráficos específicos por ID
+      const graficoEvolucao = containerRef.current.querySelector('#grafico-evolucao')
+      const graficoComposicao = containerRef.current.querySelector('#grafico-composicao')
       
-      if (graficos.length >= 2) {
+      if (graficoEvolucao && graficoComposicao) {
         const graficoWidth = (pageWidth - 2 * margin - 10) / 2
         const graficoHeight = 60
 
         try {
           // Gráfico 1 - Evolução Mensal (esquerda)
-          const canvas1 = await html2canvas(graficos[0] as HTMLElement, {
+          const canvas1 = await html2canvas(graficoEvolucao as HTMLElement, {
             scale: 2,
             useCORS: true,
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            logging: false,
+            allowTaint: true
           })
           
           const imgData1 = canvas1.toDataURL('image/png')
@@ -263,10 +269,12 @@ export function BotoesExportacao({ linhas, totais, nomeEmpresa, ano, containerRe
           pdf.text('Evolução Mensal', margin, yPosition - 3)
           
           // Gráfico 2 - Composição de Impostos (direita)
-          const canvas2 = await html2canvas(graficos[1] as HTMLElement, {
+          const canvas2 = await html2canvas(graficoComposicao as HTMLElement, {
             scale: 2,
             useCORS: true,
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            logging: false,
+            allowTaint: true
           })
           
           const imgData2 = canvas2.toDataURL('image/png')
@@ -286,12 +294,18 @@ export function BotoesExportacao({ linhas, totais, nomeEmpresa, ano, containerRe
       // === GRÁFICO DE EVOLUÇÃO FINANCEIRA (largura completa) ===
       checkPageBreak(70)
       
-      if (graficos.length >= 3) {
+      const graficoEvolucaoFinanceira = containerRef.current.querySelector('#grafico-evolucao-financeira')
+      
+      if (graficoEvolucaoFinanceira) {
         try {
-          const canvas3 = await html2canvas(graficos[2] as HTMLElement, {
+          const canvas3 = await html2canvas(graficoEvolucaoFinanceira as HTMLElement, {
             scale: 2,
             useCORS: true,
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            logging: false,
+            allowTaint: true,
+            height: graficoEvolucaoFinanceira.scrollHeight,
+            width: graficoEvolucaoFinanceira.scrollWidth
           })
           
           const imgData3 = canvas3.toDataURL('image/png')

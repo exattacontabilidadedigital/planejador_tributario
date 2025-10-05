@@ -2,18 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useEmpresasStore } from "@/stores/empresas-store";
+import { useEmpresas } from "@/hooks/use-empresas";
 import { MigracaoInicial } from "@/components/migracao-inicial";
 
 export default function Home() {
   const router = useRouter();
-  const { empresas, empresaAtual } = useEmpresasStore();
+  const { empresas, empresaAtualData, empresaAtualId, isLoading, error } = useEmpresas();
   const [mostrarMigracao, setMostrarMigracao] = useState(false);
 
   useEffect(() => {
+    // Se está carregando, aguarda
+    if (isLoading) {
+      return;
+    }
+
     // Se tem empresa atual, vai para o dashboard dela
-    if (empresaAtual) {
-      router.push(`/empresas/${empresaAtual}`);
+    if (empresaAtualId) {
+      router.push(`/empresas/${empresaAtualId}`);
     } 
     // Se tem empresas mas nenhuma selecionada, vai para lista
     else if (empresas.length > 0) {
@@ -23,10 +28,10 @@ export default function Home() {
     else {
       setMostrarMigracao(true);
     }
-  }, [empresas.length, empresaAtual, router]);
+  }, [empresas.length, empresaAtualId, router, isLoading]);
 
-  // Mostrar tela de migração
-  if (mostrarMigracao) {
+  // Se há erro, mostra na tela de migração
+  if (error || mostrarMigracao) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
         <div className="w-full max-w-2xl">
@@ -37,6 +42,11 @@ export default function Home() {
             <p className="text-muted-foreground">
               Bem-vindo ao sistema v2.0 com suporte multi-empresa
             </p>
+            {error && (
+              <p className="text-destructive mt-2">
+                Erro ao carregar dados: {error}
+              </p>
+            )}
           </div>
           <MigracaoInicial />
         </div>

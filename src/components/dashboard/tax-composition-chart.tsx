@@ -8,13 +8,13 @@ import {
   ArcElement,
   Tooltip,
   Legend,
-  ChartOptions,
+  type ChartOptions,
 } from "chart.js"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useTaxCalculations } from "@/hooks/use-tax-calculations"
 import { formatCurrency, formatPercentage } from "@/lib/utils"
 
-// Registrar componentes do Chart.js
+// Registrar apenas componentes necessários para Doughnut
 ChartJS.register(ArcElement, Tooltip, Legend)
 
 export const TaxCompositionChart = React.memo(function TaxCompositionChart() {
@@ -54,7 +54,15 @@ export const TaxCompositionChart = React.memo(function TaxCompositionChart() {
   const chartOptions: ChartOptions<"doughnut"> = useMemo(
     () => ({
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
+      // Otimizações de performance
+      animation: {
+        duration: 300, // Animação mais rápida
+      },
+      interaction: {
+        intersect: false,
+        mode: 'point' as const,
+      },
       plugins: {
         legend: {
           position: "bottom" as const,

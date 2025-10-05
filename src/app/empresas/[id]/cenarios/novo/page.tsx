@@ -1,9 +1,9 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useEmpresasStore } from "@/stores/empresas-store"
-import { useCenariosStore } from "@/stores/cenarios-store"
+import { useEmpresas } from "@/hooks/use-empresas"
+import { useCenarios } from "@/hooks/use-cenarios"
 import { useTaxStore } from "@/hooks/use-tax-store"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,8 +34,8 @@ export default function NovoCenarioPage({
   const { id } = use(params)
   const router = useRouter()
   const { toast } = useToast()
-  const { getEmpresa } = useEmpresasStore()
-  const { addCenario } = useCenariosStore()
+  const { getEmpresa } = useEmpresas()
+  const { addCenario } = useCenarios(id)
   const { config } = useTaxStore()
   
   const empresa = getEmpresa(id)
@@ -43,9 +43,19 @@ export default function NovoCenarioPage({
   const [nome, setNome] = useState("")
   const [descricao, setDescricao] = useState("")
   const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodo>("mensal")
-  const [ano, setAno] = useState(new Date().getFullYear())
-  const [mes, setMes] = useState(new Date().getMonth() + 1)
-  const [trimestre, setTrimestre] = useState<1 | 2 | 3 | 4>(1)
+  const [ano, setAno] = useState(2025) // Valor fixo para evitar hidratação mismatch
+  const [mes, setMes] = useState(10) // Valor fixo para evitar hidratação mismatch
+  const [trimestre, setTrimestre] = useState<1 | 2 | 3 | 4>(4)
+  const [mounted, setMounted] = useState(false)
+
+  // Definir valores de data apenas no cliente
+  useEffect(() => {
+    const currentDate = new Date()
+    setAno(currentDate.getFullYear())
+    setMes(currentDate.getMonth() + 1)
+    setTrimestre(Math.ceil((currentDate.getMonth() + 1) / 3) as 1 | 2 | 3 | 4)
+    setMounted(true)
+  }, [])
 
   if (!empresa) {
     return (
@@ -108,29 +118,37 @@ export default function NovoCenarioPage({
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     const nomeDefinitivo = nome.trim() || gerarNomeAutomatico()
     const periodo = calcularPeriodo()
 
-    const novoCenario = addCenario(
-      id,
-      {
-        nome: nomeDefinitivo,
-        descricao: descricao.trim() || undefined,
-        periodo,
-        status: 'rascunho',
-      },
-      config
-    )
+    try {
+      const novoCenario = await addCenario(
+        {
+          nome: nomeDefinitivo,
+          descricao: descricao.trim() || undefined,
+          periodo,
+          status: 'rascunho',
+        },
+        config
+      )
 
-    toast({
-      title: "Cenário criado!",
-      description: `${novoCenario.nome} foi criado como rascunho.`,
-    })
+      toast({
+        title: "Cenário criado!",
+        description: `${novoCenario.nome} foi criado como rascunho.`,
+      })
 
-    router.push(`/empresas/${id}/cenarios/${novoCenario.id}`)
+      router.push(`/empresas/${id}/cenarios/${novoCenario.id}`)
+    } catch (error) {
+      console.error('Erro ao criar cenário:', error)
+      toast({
+        title: "Erro ao criar cenário",
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleCancel = () => {
@@ -140,7 +158,7 @@ export default function NovoCenarioPage({
   // Anos disponíveis (último ano até próximo ano)
   const anosDisponiveis = Array.from(
     { length: 3 },
-    (_, i) => new Date().getFullYear() - 1 + i
+    (_, i) => (mounted ? new Date().getFullYear() : 2025) - 1 + i
   )
 
   return (

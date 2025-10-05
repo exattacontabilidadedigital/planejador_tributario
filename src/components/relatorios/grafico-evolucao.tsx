@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { DadosGraficoEvolucao } from "@/types/relatorio"
 import {
@@ -19,7 +20,7 @@ interface GraficoEvolucaoProps {
   descricao?: string
 }
 
-export function GraficoEvolucao({ dados, titulo, descricao }: GraficoEvolucaoProps) {
+export const GraficoEvolucao = React.memo(function GraficoEvolucao({ dados, titulo, descricao }: GraficoEvolucaoProps) {
   if (dados.length === 0) {
     return (
       <Card>
@@ -129,4 +130,4 @@ export function GraficoEvolucao({ dados, titulo, descricao }: GraficoEvolucaoPro
       </CardContent>
     </Card>
   )
-}
+})

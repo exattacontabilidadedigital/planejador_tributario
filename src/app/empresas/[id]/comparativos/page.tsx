@@ -382,7 +382,7 @@ export default function ComparativosPage() {
                 <CardContent className="pt-6">
                   <div className="flex gap-3">
                     <Icon className={`h-5 w-5 ${iconColor} flex-shrink-0 mt-0.5`} />
-                    <p className={`text-sm font-medium ${textColor}`}>{insight.mensagem}</p>
+                    <p className={`text-sm font-medium ${textColor}`}>{insight.descricao}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -466,7 +466,7 @@ export default function ComparativosPage() {
             <CardContent>
               <div className="space-y-4">
                 {metricas.map((metrica, idx) => (
-                  <div key={metrica.cenarioId} className="space-y-2">
+                  <div key={metrica.id} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <p className="font-medium text-sm">{metrica.nome}</p>
                       <div
@@ -553,24 +553,24 @@ export default function ComparativosPage() {
                           }).format(v)
 
                     const corVariacao =
-                      variacao.variacaoAbsoluta > 0
+                      variacao.absoluta > 0
                         ? "text-green-600"
-                        : variacao.variacaoAbsoluta < 0
+                        : variacao.absoluta < 0
                         ? "text-red-600"
                         : "text-muted-foreground"
 
                     return (
                       <tr key={idx} className="border-t">
                         <td className="p-3 font-medium">{variacao.metrica}</td>
-                        <td className="p-3 text-right">{formatador(variacao.cenario1Valor)}</td>
-                        <td className="p-3 text-right">{formatador(variacao.cenario2Valor)}</td>
+                        <td className="p-3 text-right">{formatador(variacao.valor1)}</td>
+                        <td className="p-3 text-right">{formatador(variacao.valor2)}</td>
                         <td className={`p-3 text-right font-medium ${corVariacao}`}>
-                          {variacao.variacaoAbsoluta > 0 ? "+" : ""}
-                          {formatador(variacao.variacaoAbsoluta)}
+                          {variacao.absoluta > 0 ? "+" : ""}
+                          {formatador(variacao.absoluta)}
                         </td>
                         <td className={`p-3 text-right font-medium ${corVariacao}`}>
-                          {variacao.variacaoPercentual > 0 ? "+" : ""}
-                          {variacao.variacaoPercentual.toFixed(1)}%
+                          {variacao.percentual > 0 ? "+" : ""}
+                          {variacao.percentual.toFixed(1)}%
                         </td>
                       </tr>
                     )

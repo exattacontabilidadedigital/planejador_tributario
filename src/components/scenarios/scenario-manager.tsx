@@ -16,21 +16,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import {
-  Star,
-  StarOff,
-  Trash2,
-  Copy,
-  Download,
-  Upload,
-  Search,
-  Folder,
-  Calendar,
-  TrendingUp,
-  TrendingDown,
-  FileJson,
-  Play,
-} from "lucide-react"
+// Importações diretas mantidas para ícones críticos do UI
+import { Star, StarOff, Play, Folder, Search, Calendar, FileJson } from "lucide-react"
+// Lazy loading para ícones secundários
+import { ActionIcons, ChartIcons, NavigationIcons } from "@/components/ui/lazy-icons"
 import { useScenarios } from "@/hooks/use-scenarios"
 import { useTaxStore } from "@/hooks/use-tax-store"
 import { formatCurrency, formatPercentage } from "@/lib/utils"
@@ -98,12 +87,12 @@ export const ScenarioManager = React.memo(function ScenarioManager() {
             <div className="flex gap-2">
               <SaveScenarioDialog />
               <Button variant="outline" size="sm" onClick={handleImport}>
-                <Upload className="h-4 w-4 mr-2" />
+                <ActionIcons.Upload className="h-4 w-4 mr-2" />
                 Importar
               </Button>
               {scenarios.length > 0 && (
                 <Button variant="outline" size="sm" onClick={exportAllScenarios}>
-                  <Download className="h-4 w-4 mr-2" />
+                  <ActionIcons.Download className="h-4 w-4 mr-2" />
                   Exportar Todos
                 </Button>
               )}
@@ -258,7 +247,7 @@ export const ScenarioManager = React.memo(function ScenarioManager() {
                     className="w-full text-xs"
                     onClick={() => duplicateScenario(scenario.metadata.id)}
                   >
-                    <Copy className="h-3 w-3 mr-1" />
+                    <ActionIcons.Copy className="h-3 w-3 mr-1" />
                     Duplicar
                   </Button>
                   <Button
@@ -276,7 +265,7 @@ export const ScenarioManager = React.memo(function ScenarioManager() {
                     className="w-full text-xs text-destructive hover:text-destructive"
                     onClick={() => setScenarioToDelete(scenario.metadata.id)}
                   >
-                    <Trash2 className="h-3 w-3 mr-1" />
+                    <ActionIcons.Trash2 className="h-3 w-3 mr-1" />
                     Deletar
                   </Button>
                 </div>

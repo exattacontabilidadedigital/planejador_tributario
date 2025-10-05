@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -18,7 +19,7 @@ interface TabelaConsolidadaProps {
   descricao?: string
 }
 
-export function TabelaConsolidada({ linhas, totais, titulo, descricao }: TabelaConsolidadaProps) {
+export const TabelaConsolidada = React.memo(function TabelaConsolidada({ linhas, totais, titulo, descricao }: TabelaConsolidadaProps) {
   if (linhas.length === 0) {
     return (
       <Card>
@@ -184,4 +185,4 @@ export function TabelaConsolidada({ linhas, totais, titulo, descricao }: TabelaC
       </CardContent>
     </Card>
   )
-}
+})

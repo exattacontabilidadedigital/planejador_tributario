@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { DadosGraficoMargem } from "@/types/relatorio"
 import {
@@ -20,7 +21,7 @@ interface GraficoMargemProps {
   descricao?: string
 }
 
-export function GraficoMargem({ dados, titulo, descricao }: GraficoMargemProps) {
+export const GraficoMargem = React.memo(function GraficoMargem({ dados, titulo, descricao }: GraficoMargemProps) {
   if (dados.length === 0) {
     return (
       <Card>
@@ -126,4 +127,4 @@ export function GraficoMargem({ dados, titulo, descricao }: GraficoMargemProps) 
       </CardContent>
     </Card>
   )
-}
+})

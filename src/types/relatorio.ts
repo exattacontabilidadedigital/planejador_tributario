@@ -90,6 +90,24 @@ export interface DadosGraficoMargem {
   meta?: number
 }
 
+export interface DadosMetricasFinanceiras {
+  categoria: string
+  valor: number
+  percentual?: number
+  cor?: string
+}
+
+export interface DadosEvolucaoFinanceira {
+  mes: string
+  receita: number
+  lucroLiquido: number
+  icms: number
+  irpj: number
+  csll: number
+  pis: number
+  cofins: number
+}
+
 // Linha da tabela consolidada
 export interface LinhaRelatorioAnual {
   mes: string

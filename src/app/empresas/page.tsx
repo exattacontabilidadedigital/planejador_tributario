@@ -2,16 +2,16 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useEmpresasStore } from "@/stores/empresas-store"
+import { useEmpresas } from "@/hooks/use-empresas"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building2, Plus, Search } from "lucide-react"
+import { Building2, Plus, Search, Loader2, AlertCircle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useState } from "react"
 
 export default function EmpresasPage() {
   const router = useRouter()
-  const { empresas, setEmpresaAtual } = useEmpresasStore()
+  const { empresas, setEmpresaAtual, isLoading, error, refresh, clearError } = useEmpresas()
   const [busca, setBusca] = useState("")
 
   // Debug: verificar empresas carregadas
@@ -29,10 +29,31 @@ export default function EmpresasPage() {
   const handleNovaEmpresa = () => {
     router.push("/empresas/nova")
   }
-
   const handleAbrirEmpresa = (id: string) => {
     setEmpresaAtual(id)
     router.push(`/empresas/${id}`)
+  }
+
+  // Se há erro, mostra mensagem
+  if (error) {
+    return (
+      <div className="container mx-auto py-8">
+        <Card className="border-destructive">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Erro ao carregar empresas
+            </CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => { clearError(); refresh() }} className="gap-2">
+              Tentar novamente
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -43,12 +64,13 @@ export default function EmpresasPage() {
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Building2 className="h-8 w-8" />
             Minhas Empresas
+            {isLoading && <Loader2 className="h-5 w-5 animate-spin" />}
           </h1>
           <p className="text-muted-foreground mt-1">
             Gerencie suas empresas e planejamentos tributários
           </p>
         </div>
-        <Button onClick={handleNovaEmpresa} size="lg" className="gap-2">
+        <Button onClick={handleNovaEmpresa} size="lg" className="gap-2" disabled={isLoading}>
           <Plus className="h-5 w-5" />
           Nova Empresa
         </Button>
@@ -62,6 +84,7 @@ export default function EmpresasPage() {
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           className="pl-10"
+          disabled={isLoading}
         />
       </div>
 
@@ -79,7 +102,7 @@ export default function EmpresasPage() {
                 : "Tente buscar com outros termos"}
             </p>
             {empresas.length === 0 && (
-              <Button onClick={handleNovaEmpresa} className="gap-2">
+              <Button onClick={handleNovaEmpresa} className="gap-2" disabled={isLoading}>
                 <Plus className="h-4 w-4" />
                 Criar Primeira Empresa
               </Button>
@@ -107,7 +130,15 @@ export default function EmpresasPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button variant="outline" className="w-full" onClick={() => handleAbrirEmpresa(empresa.id)}>
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleAbrirEmpresa(empresa.id)
+                  }}
+                  disabled={isLoading}
+                >
                   Abrir Dashboard
                 </Button>
               </CardContent>

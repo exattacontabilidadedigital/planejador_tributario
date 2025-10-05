@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useEmpresasStore } from "@/stores/empresas-store"
+import { useEmpresas } from "@/hooks/use-empresas"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ArrowLeft, Building2, Save } from "lucide-react"
+import { ArrowLeft, Building2, Save, Loader2 } from "lucide-react"
 import type { EmpresaFormData } from "@/types/empresa"
 import { useToast } from "@/hooks/use-toast"
 
@@ -26,8 +26,9 @@ const ESTADOS = [
 
 export default function NovaEmpresaPage() {
   const router = useRouter()
-  const { addEmpresa } = useEmpresasStore()
+  const { addEmpresa, isLoading, error } = useEmpresas()
   const { toast } = useToast()
+  const [salvando, setSalvando] = useState(false)
   
   const [formData, setFormData] = useState<EmpresaFormData>({
     nome: "",
@@ -39,7 +40,7 @@ export default function NovaEmpresaPage() {
     municipio: "",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     // Validações básicas
@@ -52,16 +53,29 @@ export default function NovaEmpresaPage() {
       return
     }
     
-    console.log("💾 Salvando empresa:", formData)
-    const novaEmpresa = addEmpresa(formData)
-    console.log("✅ Empresa salva:", novaEmpresa)
+    setSalvando(true)
     
-    toast({
-      title: "Empresa criada!",
-      description: `${novaEmpresa.nome} foi cadastrada com sucesso.`,
-    })
-    
-    router.push(`/empresas/${novaEmpresa.id}`)
+    try {
+      console.log("💾 Salvando empresa:", formData)
+      const novaEmpresa = await addEmpresa(formData)
+      console.log("✅ Empresa salva:", novaEmpresa)
+      
+      toast({
+        title: "Empresa criada!",
+        description: `${novaEmpresa.nome} foi cadastrada com sucesso.`,
+      })
+      
+      router.push(`/empresas/${novaEmpresa.id}`)
+    } catch (error) {
+      console.error("❌ Erro ao salvar empresa:", error)
+      toast({
+        title: "Erro ao criar empresa",
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado",
+        variant: "destructive",
+      })
+    } finally {
+      setSalvando(false)
+    }
   }
 
   const handleCancel = () => {
@@ -74,6 +88,7 @@ export default function NovaEmpresaPage() {
         variant="ghost"
         onClick={handleCancel}
         className="mb-6 gap-2"
+        disabled={salvando}
       >
         <ArrowLeft className="h-4 w-4" />
         Voltar
@@ -233,12 +248,31 @@ export default function NovaEmpresaPage() {
 
             {/* Botões */}
             <div className="flex gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={handleCancel} className="flex-1">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleCancel} 
+                className="flex-1"
+                disabled={salvando}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" className="flex-1 gap-2">
-                <Save className="h-4 w-4" />
-                Criar Empresa
+              <Button 
+                type="submit" 
+                className="flex-1 gap-2"
+                disabled={salvando}
+              >
+                {salvando ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Criar Empresa
+                  </>
+                )}
               </Button>
             </div>
           </form>

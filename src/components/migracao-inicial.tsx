@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { useEmpresasStore } from "@/stores/empresas-store"
+import { useEmpresas } from "@/hooks/use-empresas"
 import { useCenariosStore } from "@/stores/cenarios-store"
 import { useTaxStore } from "@/hooks/use-tax-store"
-import { Building2, CheckCircle2, Database, ArrowRight } from "lucide-react"
+import { Building2, CheckCircle2, Database, ArrowRight, Loader2 } from "lucide-react"
 import type { Empresa } from "@/types/empresa"
 import type { Cenario } from "@/types/cenario"
 
@@ -18,51 +18,53 @@ export function MigracaoInicial() {
   const [migrado, setMigrado] = useState(false)
   const [migrando, setMigrando] = useState(false)
 
-  const { empresas, addEmpresa, setEmpresaAtual } = useEmpresasStore()
+  const { empresas, addEmpresa, setEmpresaAtual, isLoading, error, clearError } = useEmpresas()
   const { addCenario } = useCenariosStore()
   const { config } = useTaxStore()
 
-  const executarMigracao = () => {
+  const executarMigracao = async () => {
     setMigrando(true)
+    clearError()
 
     try {
       // 1. Criar empresa de exemplo
-      const empresaExemplo: Omit<Empresa, "id" | "criadoEm" | "atualizadoEm"> = {
+      const empresaExemplo = {
         nome: "Empresa Exemplo",
         cnpj: "12.345.678/0001-90",
         razaoSocial: "Empresa Exemplo LTDA",
-        regimeTributario: "lucro-real",
-        setor: "comercio",
+        regimeTributario: "lucro-real" as const,
+        setor: "comercio" as const,
         uf: "SP",
         municipio: "São Paulo",
         inscricaoEstadual: "123.456.789.000",
         inscricaoMunicipal: "987654321",
       }
 
-      const empresaId = addEmpresa(empresaExemplo)
-      setEmpresaAtual(empresaId.id)
+      const empresaCriada = await addEmpresa(empresaExemplo)
+      setEmpresaAtual(empresaCriada.id)
 
       // 2. Verificar se há configuração existente no tax-planner-storage
       const temConfigExistente = config.receitaBruta > 0
 
       if (temConfigExistente) {
         // 3. Criar cenário com a configuração existente
+        const currentYear = new Date().getFullYear() // Usado dentro de função assíncrona, não causa hidratação mismatch
         const cenarioInicial: Omit<Cenario, "id" | "criadoEm" | "atualizadoEm"> = {
-          empresaId: empresaId.id,
+          empresaId: empresaCriada.id,
           nome: "Planejamento Atual (Migrado)",
           descricao: "Cenário migrado automaticamente do sistema anterior",
           periodo: {
             tipo: "anual",
-            ano: new Date().getFullYear(),
-            inicio: `${new Date().getFullYear()}-01-01`,
-            fim: `${new Date().getFullYear()}-12-31`,
+            ano: currentYear,
+            inicio: `${currentYear}-01-01`,
+            fim: `${currentYear}-12-31`,
           },
           status: "rascunho",
-          config: { ...config },
+          configuracao: { ...config },
           tags: [],
         }
 
-        addCenario(empresaId.id, cenarioInicial, config)
+        addCenario(empresaCriada.id, cenarioInicial, config)
 
         toast({
           title: "Migração concluída com sucesso!",
@@ -79,18 +81,57 @@ export function MigracaoInicial() {
 
       // Redirecionar após 2 segundos
       setTimeout(() => {
-        router.push(`/empresas/${empresaId.id}`)
+        router.push(`/empresas/${empresaCriada.id}`)
       }, 2000)
     } catch (error) {
       console.error("Erro na migração:", error)
       toast({
         title: "Erro na migração",
-        description: "Ocorreu um erro ao migrar os dados. Tente novamente.",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao migrar os dados. Tente novamente.",
         variant: "destructive",
       })
     } finally {
       setMigrando(false)
     }
+  }
+
+  // Se está carregando
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Carregando sistema...
+          </CardTitle>
+          <CardDescription>
+            Verificando dados existentes...
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    )
+  }
+
+  // Se há erro
+  if (error) {
+    return (
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-destructive">
+            <Database className="h-5 w-5" />
+            Erro ao carregar sistema
+          </CardTitle>
+          <CardDescription>
+            {error}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={() => { clearError(); window.location.reload() }} className="gap-2">
+            Tentar novamente
+          </Button>
+        </CardContent>
+      </Card>
+    )
   }
 
   // Verificar se já existe empresa

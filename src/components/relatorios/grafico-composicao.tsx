@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { DadosGraficoComposicao } from "@/types/relatorio"
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts"
@@ -10,7 +11,7 @@ interface GraficoComposicaoProps {
   descricao?: string
 }
 
-export function GraficoComposicao({ dados, titulo, descricao }: GraficoComposicaoProps) {
+export const GraficoComposicao = React.memo(function GraficoComposicao({ dados, titulo, descricao }: GraficoComposicaoProps) {
   if (dados.length === 0) {
     return (
       <Card>
@@ -107,4 +108,4 @@ export function GraficoComposicao({ dados, titulo, descricao }: GraficoComposica
       </CardContent>
     </Card>
   )
-}
+})

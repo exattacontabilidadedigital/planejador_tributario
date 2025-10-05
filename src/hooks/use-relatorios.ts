@@ -7,17 +7,21 @@ import type {
   DadosGraficoEvolucao,
   DadosGraficoComposicao,
   DadosGraficoMargem,
+  DadosMetricasFinanceiras,
+  DadosEvolucaoFinanceira,
   LinhaRelatorioAnual,
   TotaisRelatorio,
 } from "@/types/relatorio"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
-export function useRelatorios(empresaId: string, ano?: number) {
+export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: string[]) {
   const { getCenariosByEmpresa } = useCenariosStore()
 
   // Filtrar cenários da empresa e do ano (se especificado)
   const cenarios = useMemo(() => {
+    if (!empresaId) return []
+    
     const todosCenarios = getCenariosByEmpresa(empresaId)
     if (!ano) return todosCenarios
 
@@ -29,8 +33,21 @@ export function useRelatorios(empresaId: string, ano?: number) {
 
   // Cenários aprovados apenas (para relatórios)
   const cenariosAprovados = useMemo(() => {
-    return cenarios.filter((c) => c.status === "aprovado")
-  }, [cenarios])
+    let cenariosFiltered = cenarios.filter((c) => c.status === "aprovado")
+    
+    // Aplicar filtro de meses se especificado
+    if (mesesFiltrados && mesesFiltrados.length > 0 && mesesFiltrados.length < 12) {
+      cenariosFiltered = cenariosFiltered.filter((c) => {
+        if (c.periodo.tipo !== "mensal") return true
+        
+        const data = parseISO(c.periodo.inicio)
+        const mesAbrev = format(data, "MMM", { locale: ptBR }).toLowerCase()
+        return mesesFiltrados.includes(mesAbrev)
+      })
+    }
+    
+    return cenariosFiltered
+  }, [cenarios, mesesFiltrados])
 
   // Processar dados de evolução temporal
   const dadosEvolucao = useMemo((): DadosGraficoEvolucao[] => {
@@ -39,7 +56,7 @@ export function useRelatorios(empresaId: string, ano?: number) {
       .sort((a, b) => a.periodo.inicio.localeCompare(b.periodo.inicio))
       .map((cenario) => {
         const data = parseISO(cenario.periodo.inicio)
-        const config = cenario.config
+        const config = cenario.configuracao
 
         // Calcular totais
         const receita = config.receitaBruta || 0
@@ -91,7 +108,7 @@ export function useRelatorios(empresaId: string, ano?: number) {
     }
 
     cenariosAprovados.forEach((cenario) => {
-      const config = cenario.config
+      const config = cenario.configuracao
       const receita = config.receitaBruta || 0
 
       const baseICMS = receita * (1 - (config.percentualST || 0) / 100)
@@ -138,7 +155,7 @@ export function useRelatorios(empresaId: string, ano?: number) {
     let despesasTotal = 0
 
     cenariosAprovados.forEach((cenario) => {
-      const config = cenario.config
+      const config = cenario.configuracao
       const receita = config.receitaBruta || 0
       const custos = config.cmvTotal || 0
       const despesas = (config.salariosPF || 0) + (config.alimentacao || 0) + 
@@ -172,6 +189,122 @@ export function useRelatorios(empresaId: string, ano?: number) {
     ]
   }, [cenariosAprovados])
 
+  // Calcular métricas financeiras abrangentes
+  const dadosMetricasFinanceiras = useMemo((): DadosMetricasFinanceiras[] => {
+    let receitaTotal = 0
+    let custosTotal = 0
+    let despesasTotal = 0
+    let icmsTotal = 0
+    let pisTotal = 0
+    let cofinsTotal = 0
+    let irpjTotal = 0
+    let csllTotal = 0
+
+    cenariosAprovados.forEach((cenario) => {
+      const config = cenario.configuracao
+      const receita = config.receitaBruta || 0
+      const custos = config.cmvTotal || 0
+      const despesas = (config.salariosPF || 0) + (config.alimentacao || 0) + 
+                      (config.combustivelPasseio || 0) + (config.outrasDespesas || 0)
+
+      const baseICMS = receita * (1 - (config.percentualST || 0) / 100)
+      const icms = baseICMS * ((config.icmsInterno || 0) / 100)
+      const basePIS = receita * (1 - (config.percentualMonofasico || 0) / 100)
+      const pis = basePIS * ((config.pisAliq || 0) / 100)
+      const cofins = basePIS * ((config.cofinsAliq || 0) / 100)
+      const baseIR = receita - custos - despesas
+      const irpj = Math.max(0, baseIR * ((config.irpjBase || 0) / 100))
+      const csll = Math.max(0, baseIR * ((config.csllAliq || 0) / 100))
+
+      receitaTotal += receita
+      custosTotal += custos
+      despesasTotal += despesas
+      icmsTotal += icms
+      pisTotal += pis
+      cofinsTotal += cofins
+      irpjTotal += irpj
+      csllTotal += csll
+    })
+
+    const lucroLiquido = receitaTotal - custosTotal - despesasTotal - icmsTotal - pisTotal - cofinsTotal - irpjTotal - csllTotal
+
+    return [
+      { 
+        categoria: "Faturamento", 
+        valor: receitaTotal, 
+        percentual: 100 
+      },
+      { 
+        categoria: "Lucro Líquido", 
+        valor: lucroLiquido, 
+        percentual: receitaTotal > 0 ? (lucroLiquido / receitaTotal) * 100 : 0 
+      },
+      { 
+        categoria: "ICMS", 
+        valor: icmsTotal, 
+        percentual: receitaTotal > 0 ? (icmsTotal / receitaTotal) * 100 : 0 
+      },
+      { 
+        categoria: "IRPJ", 
+        valor: irpjTotal, 
+        percentual: receitaTotal > 0 ? (irpjTotal / receitaTotal) * 100 : 0 
+      },
+      { 
+        categoria: "CSLL", 
+        valor: csllTotal, 
+        percentual: receitaTotal > 0 ? (csllTotal / receitaTotal) * 100 : 0 
+      },
+      { 
+        categoria: "PIS", 
+        valor: pisTotal, 
+        percentual: receitaTotal > 0 ? (pisTotal / receitaTotal) * 100 : 0 
+      },
+      { 
+        categoria: "COFINS", 
+        valor: cofinsTotal, 
+        percentual: receitaTotal > 0 ? (cofinsTotal / receitaTotal) * 100 : 0 
+      },
+    ]
+  }, [cenariosAprovados])
+
+  // Calcular evolução financeira mensal
+  const dadosEvolucaoFinanceira = useMemo((): DadosEvolucaoFinanceira[] => {
+    return cenariosAprovados
+      .filter((c) => c.periodo.tipo === "mensal")
+      .sort((a, b) => a.periodo.inicio.localeCompare(b.periodo.inicio))
+      .map((cenario) => {
+        const data = parseISO(cenario.periodo.inicio)
+        const config = cenario.configuracao
+
+        const receita = config.receitaBruta || 0
+        const custos = config.cmvTotal || 0
+        const despesas = (config.salariosPF || 0) + (config.alimentacao || 0) + 
+                        (config.combustivelPasseio || 0) + (config.outrasDespesas || 0)
+
+        const baseICMS = receita * (1 - (config.percentualST || 0) / 100)
+        const icms = baseICMS * ((config.icmsInterno || 0) / 100)
+        const basePIS = receita * (1 - (config.percentualMonofasico || 0) / 100)
+        const pis = basePIS * ((config.pisAliq || 0) / 100)
+        const cofins = basePIS * ((config.cofinsAliq || 0) / 100)
+        const baseIR = receita - custos - despesas
+        const irpj = Math.max(0, baseIR * ((config.irpjBase || 0) / 100))
+        const csll = Math.max(0, baseIR * ((config.csllAliq || 0) / 100))
+
+        const lucroLiquido = receita - custos - despesas - icms - pis - cofins - irpj - csll
+
+        return {
+          mes: format(data, "MMM", { locale: ptBR }),
+          receita,
+          lucroLiquido,
+          icms,
+          irpj,
+          csll,
+          pis,
+          cofins,
+        }
+      })
+  }, [cenariosAprovados])
+
   // Gerar linhas da tabela consolidada
   const linhasTabela = useMemo((): LinhaRelatorioAnual[] => {
     return cenariosAprovados
@@ -179,7 +312,7 @@ export function useRelatorios(empresaId: string, ano?: number) {
       .sort((a, b) => a.periodo.inicio.localeCompare(b.periodo.inicio))
       .map((cenario) => {
         const data = parseISO(cenario.periodo.inicio)
-        const config = cenario.config
+        const config = cenario.configuracao
 
         const receita = config.receitaBruta || 0
         const custos = config.cmvTotal || 0
@@ -292,6 +425,8 @@ export function useRelatorios(empresaId: string, ano?: number) {
     dadosEvolucao,
     dadosComposicao,
     dadosMargem,
+    dadosMetricasFinanceiras,
+    dadosEvolucaoFinanceira,
     linhasTabela,
     totais,
     anosDisponiveis,

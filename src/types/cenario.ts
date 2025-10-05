@@ -25,17 +25,25 @@ export interface Cenario {
   descricao?: string
   periodo: PeriodoCenario
   
-  // Dados do planejamento
-  config: TaxConfig
+  // Dados do planejamento - CORRIGIDO: usar 'configuracao' em vez de 'config'
+  configuracao: TaxConfig
   
   // Status e controle
   status: StatusCenario
   
-  // Metadados
-  criadoEm: string // ISO date string
-  atualizadoEm: string // ISO date string
-  criadoPor?: string
+  // Campos do banco de dados - NOVOS CAMPOS MAPEADOS
+  ano?: number
+  tipo_periodo?: TipoPeriodo
+  data_inicio?: string
+  data_fim?: string
+  mes?: number
+  trimestre?: 1 | 2 | 3 | 4
+  criado_por?: string
   tags?: string[]
+  
+  // Metadados
+  criadoEm: string // ISO date string (created_at)
+  atualizadoEm: string // ISO date string (updated_at)
 }
 
 export interface CenarioFormData {

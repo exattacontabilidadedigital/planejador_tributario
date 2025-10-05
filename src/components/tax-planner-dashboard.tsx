@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useTaxStore } from "@/hooks/use-tax-store"
 import { useTaxCalculations } from "@/hooks/use-tax-calculations"
 import { formatCurrency, formatPercentage } from "@/lib/utils"
@@ -14,8 +15,35 @@ import { MemoriaICMSTable } from "@/components/memoria/memoria-icms-table"
 import { MemoriaPISCOFINSTable } from "@/components/memoria/memoria-pis-cofins-table"
 import { MemoriaIRPJCSLLTable } from "@/components/memoria/memoria-irpj-csll-table"
 import { DRETable } from "@/components/dre/dre-table"
-import { TaxCompositionChart } from "@/components/dashboard/tax-composition-chart"
 import { ScenarioManager } from "@/components/scenarios/scenario-manager"
+import dynamic from "next/dynamic"
+
+// Lazy loading do gráfico Chart.js para otimizar bundle splitting
+const TaxCompositionChart = dynamic(
+  () => import("@/components/dashboard/tax-composition-chart").then(mod => ({ default: mod.TaxCompositionChart })),
+  { 
+    loading: () => (
+      <Card className="h-[400px]">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 animate-pulse" />
+            <Skeleton className="h-6 w-48" />
+          </div>
+          <Skeleton className="h-4 w-32" />
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <BarChart3 className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4 animate-pulse" />
+              <p className="text-sm text-muted-foreground">Carregando gráfico...</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    ),
+    ssr: false // Chart.js não precisa de SSR - otimiza ainda mais o bundle
+  }
+)
 
 export function TaxPlannerDashboard() {
   const { activeTab, setActiveTab } = useTaxStore()

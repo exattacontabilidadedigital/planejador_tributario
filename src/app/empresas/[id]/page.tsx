@@ -1,10 +1,12 @@
 "use client"
 
-import { use, useMemo, useState } from "react"
+import { use, useMemo, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useEmpresasStore } from "@/stores/empresas-store"
 import { useCenariosStore } from "@/stores/cenarios-store"
 import { useRelatorios } from "@/hooks/use-relatorios"
+import { useRelatoriosSimples } from "@/hooks/use-relatorios-simples"
+import { CenariosErrorBoundary } from "@/components/cenarios-error-boundary"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
@@ -32,6 +34,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
+import '@/lib/debug-cenarios' // Ferramentas de debug para cenários
 
 export default function EmpresaDashboardPage({
   params,
@@ -41,12 +44,147 @@ export default function EmpresaDashboardPage({
   const { id } = use(params)
   const router = useRouter()
   const { getEmpresa } = useEmpresasStore()
-  const { getCenariosByEmpresa } = useCenariosStore()
+  const { getCenariosByEmpresa, fetchCenarios } = useCenariosStore()
   
-  const empresa = getEmpresa(id)
-  const cenarios = getCenariosByEmpresa(id)
-  const [anoAtual] = useState(() => new Date().getFullYear())
-  const { dadosEvolucao, totais, cenariosAprovados } = useRelatorios(id, anoAtual)
+  // Estados para hidratação segura
+  const [mounted, setMounted] = useState(false)
+  const [empresa, setEmpresa] = useState<any>(null)
+  const [cenarios, setCenarios] = useState<any[]>([])
+  const [anoAtual, setAnoAtual] = useState(2025)
+  
+  // Hook para relatórios simplificados - filtra por empresa
+  const {
+    resumoGeral,
+    relatorioComparacao,
+    melhorCenario,
+    totalCenarios,
+    atualizarDados,
+    loading: relatoriosLoading,
+    error: relatoriosError
+  } = useRelatoriosSimples(id)
+  
+  // Effect para hidratação segura
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+    
+    const loadData = async () => {
+      console.log('🔄 [DASHBOARD] Carregando dados para empresa:', id)
+      
+      try {
+        // Carregar cenários do Supabase primeiro
+        console.log('📊 [DASHBOARD] Chamando fetchCenarios...')
+        await fetchCenarios(id)
+        console.log('✅ [DASHBOARD] fetchCenarios concluído')
+        
+        // Depois carregar dados locais
+        const empresaData = getEmpresa(id)
+        const cenariosData = getCenariosByEmpresa(id)
+        
+        console.log('📋 [DASHBOARD] Dados locais:', {
+          empresa: !!empresaData,
+          cenarios: cenariosData.length
+        })
+        
+        setEmpresa(empresaData)
+        setCenarios(cenariosData)
+      } catch (error) {
+        console.error('❌ [DASHBOARD] Erro ao carregar dados:', error)
+      }
+    }
+    
+    loadData()
+  }, [mounted, id, getEmpresa, getCenariosByEmpresa, fetchCenarios])
+
+  // Dados para o gráfico de evolução - USANDO DADOS REAIS DO BANCO (SEM INTERPRETAÇÃO)
+  const dadosEvolucao = useMemo(() => {
+    if (!mounted || !relatorioComparacao.length) return []
+    
+    // Nomes dos meses para mapear números para abreviações
+    const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    
+    // Usar APENAS os dados reais do banco - sem interpretação de nomes
+    const dadosReais = relatorioComparacao
+      .filter(cenario => cenario.mesReferencia) // Só cenários com mês definido no banco
+      .sort((a, b) => (a.mesReferencia || 0) - (b.mesReferencia || 0)) // Ordenar por mês do banco
+      .map(cenario => ({
+        mes: nomesMeses[(cenario.mesReferencia || 1) - 1] || `Mês ${cenario.mesReferencia}`,
+        receita: cenario.receita || 0,
+        lucro: cenario.lucroLiquido || 0,
+        mesReferencia: cenario.mesReferencia,
+        nome: cenario.nome
+      }))
+    
+    console.log('📊 [Dashboard] Dados do banco para gráfico de evolução:', {
+      totalCenarios: relatorioComparacao.length,
+      cenariosComMes: dadosReais.length,
+      dados: dadosReais.map(d => ({
+        mes: d.mes,
+        nome: d.nome,
+        receita: d.receita,
+        lucro: d.lucro,
+        mesBanco: d.mesReferencia
+      }))
+    })
+    
+    return dadosReais
+  }, [mounted, relatorioComparacao])
+
+  // Insights automáticos baseados nos dados simplificados
+  const insights = useMemo(() => {
+    if (!mounted || !resumoGeral || totalCenarios === 0) return []
+    
+    const results = []
+    
+    // Insight de receita total
+    if (resumoGeral.totalReceita > 100000) {
+      results.push({
+        tipo: 'success',
+        mensagem: `Receita total: ${resumoGeral.totalReceita.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
+        acao: 'Performance sólida'
+      })
+    }
+    
+    // Insight de carga tributária
+    if (resumoGeral.percentualTributario > 30) {
+      results.push({
+        tipo: 'alert',
+        mensagem: `Carga tributária elevada: ${resumoGeral.percentualTributario.toFixed(1)}%`,
+        acao: 'Considere otimizações'
+      })
+    }
+
+    // Insight sobre melhor cenário
+    if (melhorCenario) {
+      results.push({
+        tipo: 'info',
+        mensagem: `Melhor cenário: ${melhorCenario.nome} (${melhorCenario.percentual.toFixed(1)}% impostos)`,
+        acao: 'Use como referência'
+      })
+    }
+    
+    return results.slice(0, 3) // Máximo 3 insights
+  }, [mounted, resumoGeral, totalCenarios, melhorCenario])
+  
+  // Loading durante hidratação
+  if (!mounted) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-1/3"></div>
+          <div className="h-4 bg-muted rounded w-1/2"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="h-32 bg-muted rounded"></div>
+            <div className="h-32 bg-muted rounded"></div>
+            <div className="h-32 bg-muted rounded"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
   
   if (!empresa) {
     return (
@@ -61,71 +199,7 @@ export default function EmpresaDashboardPage({
     .sort((a, b) => new Date(b.atualizadoEm).getTime() - new Date(a.atualizadoEm).getTime())
     .slice(0, 5)
 
-  // Calcular insights
-  const insights = useMemo(() => {
-    const results = []
-    
-    if (cenariosAprovados.length === 0) {
-      results.push({
-        tipo: 'warning',
-        mensagem: 'Nenhum cenário aprovado para análise',
-        acao: 'Aprove cenários para visualizar insights'
-      })
-    } else {
-      // Insight de carga tributária
-      if (totais.cargaTributariaEfetiva > 35) {
-        results.push({
-          tipo: 'alert',
-          mensagem: `Carga tributária elevada: ${totais.cargaTributariaEfetiva.toFixed(1)}%`,
-          acao: 'Considere otimizações fiscais'
-        })
-      } else if (totais.cargaTributariaEfetiva > 0) {
-        results.push({
-          tipo: 'success',
-          mensagem: `Carga tributária adequada: ${totais.cargaTributariaEfetiva.toFixed(1)}%`,
-          acao: 'Continue monitorando'
-        })
-      }
-      
-      // Insight de margem líquida
-      if (totais.margemLiquida < 10 && totais.margemLiquida > 0) {
-        results.push({
-          tipo: 'alert',
-          mensagem: `Margem líquida baixa: ${totais.margemLiquida.toFixed(1)}%`,
-          acao: 'Revise custos e despesas'
-        })
-      } else if (totais.margemLiquida >= 20) {
-        results.push({
-          tipo: 'success',
-          mensagem: `Ótima margem líquida: ${totais.margemLiquida.toFixed(1)}%`,
-          acao: 'Empresa saudável'
-        })
-      }
-      
-      // Insight de tendência (se houver evolução)
-      if (dadosEvolucao.length >= 2) {
-        const primeiro = dadosEvolucao[0]
-        const ultimo = dadosEvolucao[dadosEvolucao.length - 1]
-        const crescimentoReceita = ((ultimo.receita - primeiro.receita) / primeiro.receita) * 100
-        
-        if (crescimentoReceita > 10) {
-          results.push({
-            tipo: 'success',
-            mensagem: `Receita crescendo ${crescimentoReceita.toFixed(1)}%`,
-            acao: 'Tendência positiva'
-          })
-        } else if (crescimentoReceita < -10) {
-          results.push({
-            tipo: 'alert',
-            mensagem: `Receita em queda ${Math.abs(crescimentoReceita).toFixed(1)}%`,
-            acao: 'Atenção necessária'
-          })
-        }
-      }
-    }
-    
-    return results.slice(0, 3) // Máximo 3 insights
-  }, [cenariosAprovados, totais, dadosEvolucao])
+
 
   return (
     <div className="container mx-auto py-8 space-y-6">
@@ -177,10 +251,10 @@ export default function EmpresaDashboardPage({
                 style: "currency",
                 currency: "BRL",
                 minimumFractionDigits: 0,
-              }).format(totais.receitaBruta || 0)}
+              }).format(resumoGeral?.totalReceita || 0)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {cenariosAprovados.length} {cenariosAprovados.length === 1 ? 'cenário aprovado' : 'cenários aprovados'}
+              {totalCenarios} {totalCenarios === 1 ? 'cenário' : 'cenários'}
             </p>
           </CardContent>
         </Card>
@@ -192,10 +266,10 @@ export default function EmpresaDashboardPage({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totais.cargaTributariaEfetiva?.toFixed(2) || '0.00'}%
+              {resumoGeral?.percentualTributario?.toFixed(2) || '0.00'}%
             </div>
             <p className="text-xs text-muted-foreground">
-              {totais.cargaTributariaEfetiva > 35 ? 'Elevada' : totais.cargaTributariaEfetiva > 25 ? 'Moderada' : 'Adequada'}
+              {(resumoGeral?.percentualTributario || 0) > 35 ? 'Elevada' : (resumoGeral?.percentualTributario || 0) > 25 ? 'Moderada' : 'Adequada'}
             </p>
           </CardContent>
         </Card>
@@ -207,14 +281,14 @@ export default function EmpresaDashboardPage({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totais.margemLiquida?.toFixed(2) || '0.00'}%
+              {resumoGeral?.totalReceita > 0 ? ((resumoGeral.lucroLiquido / resumoGeral.totalReceita) * 100).toFixed(2) : '0.00'}%
             </div>
             <p className="text-xs text-muted-foreground">
               Lucro: {new Intl.NumberFormat("pt-BR", {
                 style: "currency",
                 currency: "BRL",
                 minimumFractionDigits: 0,
-              }).format(totais.lucroLiquido || 0)}
+              }).format(resumoGeral?.lucroLiquido || 0)}
             </p>
           </CardContent>
         </Card>
@@ -225,7 +299,7 @@ export default function EmpresaDashboardPage({
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{cenarios.length}</div>
+            <div className="text-2xl font-bold">{totalCenarios}</div>
             <p className="text-xs text-muted-foreground">
               {cenarios.filter(c => c.status === 'rascunho').length} rascunhos
             </p>
@@ -267,14 +341,27 @@ export default function EmpresaDashboardPage({
                       backgroundColor: "hsl(var(--background))",
                       border: "1px solid hsl(var(--border))",
                       borderRadius: "8px",
+                      color: "hsl(var(--foreground))",
                     }}
-                    formatter={(value: number) => [
-                      new Intl.NumberFormat("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                        minimumFractionDigits: 0,
-                      }).format(value),
-                    ]}
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-background border border-border rounded-lg p-3 shadow-md">
+                            <p className="font-medium mb-2">{`${label}.`}</p>
+                            {payload.map((entry, index) => (
+                              <p key={index} style={{ color: entry.color }}>
+                                {`${entry.name}: ${new Intl.NumberFormat("pt-BR", {
+                                  style: "currency",
+                                  currency: "BRL",
+                                  minimumFractionDigits: 0,
+                                }).format(entry.value as number)}`}
+                              </p>
+                            ))}
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
                   />
                   <Line
                     type="monotone"

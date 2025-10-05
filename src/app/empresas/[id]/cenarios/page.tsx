@@ -1,10 +1,11 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { useEmpresasStore } from "@/stores/empresas-store"
 import { useCenariosStore } from "@/stores/cenarios-store"
+import { CenariosErrorBoundary } from "@/components/cenarios-error-boundary"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -45,14 +46,76 @@ export default function CenariosPage({
   const router = useRouter()
   const { toast } = useToast()
   const { getEmpresa } = useEmpresasStore()
-  const { getCenariosByEmpresa, deleteCenario, duplicarCenario, aprovarCenario } = useCenariosStore()
+  const { getCenariosByEmpresa, fetchCenarios, deleteCenario, duplicarCenario, aprovarCenario } = useCenariosStore()
   
-  const empresa = getEmpresa(id)
-  const todosCenarios = getCenariosByEmpresa(id)
+  // Estados para hidratação segura
+  const [mounted, setMounted] = useState(false)
+  const [empresa, setEmpresa] = useState<any>(null)
+  const [todosCenarios, setTodosCenarios] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   
   const [busca, setBusca] = useState("")
   const [filtroAno, setFiltroAno] = useState<string>("todos")
   const [filtroStatus, setFiltroStatus] = useState<string>("todos")
+
+  // Effect para hidratação segura
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Effect para carregar dados
+  useEffect(() => {
+    if (!mounted) return
+
+    const loadData = async () => {
+      try {
+        console.log('🔄 [CENÁRIOS] Carregando dados para empresa:', id)
+        
+        // Carregar empresa
+        const empresaData = getEmpresa(id)
+        setEmpresa(empresaData)
+        
+        // Carregar cenários
+        await fetchCenarios(id)
+        const cenariosData = getCenariosByEmpresa(id)
+        setTodosCenarios(cenariosData)
+        
+        console.log('✅ [CENÁRIOS] Dados carregados:', {
+          empresa: empresaData?.nome,
+          cenarios: cenariosData.length
+        })
+        
+      } catch (error) {
+        console.error('❌ [CENÁRIOS] Erro ao carregar:', error)
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar cenários",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [mounted, id, getEmpresa, fetchCenarios, getCenariosByEmpresa, toast])
+
+  // Loading durante hidratação
+  if (!mounted || loading) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-1/3"></div>
+          <div className="h-4 bg-muted rounded w-1/2"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="h-32 bg-muted rounded"></div>
+            <div className="h-32 bg-muted rounded"></div>
+            <div className="h-32 bg-muted rounded"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
   
   if (!empresa) {
     return (
@@ -78,35 +141,79 @@ export default function CenariosPage({
     new Set(todosCenarios.map(c => c.periodo.ano))
   ).sort((a, b) => b - a)
 
-  const handleDuplicar = (cenarioId: string) => {
-    const cenarioDuplicado = duplicarCenario(cenarioId)
-    if (cenarioDuplicado) {
+  const handleDuplicar = async (cenarioId: string) => {
+    try {
+      const cenarioDuplicado = await duplicarCenario(cenarioId)
+      if (cenarioDuplicado) {
+        // Atualizar lista local
+        const cenariosAtualizados = getCenariosByEmpresa(id)
+        setTodosCenarios(cenariosAtualizados)
+        
+        toast({
+          title: "Cenário duplicado!",
+          description: `${cenarioDuplicado.nome} foi criado com sucesso.`,
+        })
+      }
+    } catch (error) {
+      console.error('Erro ao duplicar:', error)
       toast({
-        title: "Cenário duplicado!",
-        description: `${cenarioDuplicado.nome} foi criado com sucesso.`,
+        title: "Erro",
+        description: "Erro ao duplicar cenário",
+        variant: "destructive",
       })
     }
   }
 
-  const handleDeletar = (cenarioId: string, nome: string) => {
+  const handleDeletar = async (cenarioId: string, nome: string) => {
     if (confirm(`Deseja realmente excluir o cenário "${nome}"?`)) {
-      deleteCenario(cenarioId)
+      try {
+        await deleteCenario(cenarioId)
+        
+        // Atualizar lista local
+        const cenariosAtualizados = getCenariosByEmpresa(id)
+        setTodosCenarios(cenariosAtualizados)
+        
+        toast({
+          title: "Cenário excluído",
+          description: `${nome} foi removido.`,
+        })
+      } catch (error) {
+        console.error('Erro ao deletar:', error)
+        toast({
+          title: "Erro",
+          description: "Erro ao excluir cenário",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  const handleAprovar = async (cenarioId: string, nome: string) => {
+    try {
+      await aprovarCenario(cenarioId)
+      
+      // Atualizar lista local
+      const cenariosAtualizados = getCenariosByEmpresa(id)
+      setTodosCenarios(cenariosAtualizados)
+      
       toast({
-        title: "Cenário excluído",
-        description: `${nome} foi removido.`,
+        title: "Cenário aprovado!",
+        description: `${nome} foi aprovado com sucesso.`,
+      })
+    } catch (error) {
+      console.error('Erro ao aprovar:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao aprovar cenário",
+        variant: "destructive",
       })
     }
   }
 
-  const handleAprovar = (cenarioId: string, nome: string) => {
-    aprovarCenario(cenarioId)
-    toast({
-      title: "Cenário aprovado!",
-      description: `${nome} foi aprovado com sucesso.`,
-    })
-  }
-
-  const getStatusBadge = (status: StatusCenario) => {
+  const getStatusBadge = (status: StatusCenario | undefined) => {
+    // Valor padrão se status for undefined (antes da correção do schema)
+    const statusSafe = status || 'rascunho'
+    
     const styles = {
       aprovado: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
       rascunho: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
@@ -114,24 +221,25 @@ export default function CenariosPage({
     }
     
     return (
-      <span className={`text-xs px-2 py-1 rounded-full ${styles[status]}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+      <span className={`text-xs px-2 py-1 rounded-full ${styles[statusSafe as keyof typeof styles]}`}>
+        {statusSafe.charAt(0).toUpperCase() + statusSafe.slice(1)}
       </span>
     )
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      {/* Header */}
-      <div>
-        <Button
-          variant="ghost"
-          onClick={() => router.push(`/empresas/${id}`)}
-          className="mb-4 gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar para Dashboard
-        </Button>
+    <CenariosErrorBoundary>
+      <div className="container mx-auto py-8 space-y-6">
+        {/* Header */}
+        <div>
+          <Button
+            variant="ghost"
+            onClick={() => router.push(`/empresas/${id}`)}
+            className="mb-4 gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Voltar para Dashboard
+          </Button>
         
         <div className="flex items-start justify-between">
           <div>
@@ -374,6 +482,7 @@ export default function CenariosPage({
           </Card>
         </div>
       )}
-    </div>
+      </div>
+    </CenariosErrorBoundary>
   )
 }

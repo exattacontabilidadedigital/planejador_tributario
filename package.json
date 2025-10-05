@@ -8,7 +8,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "analyze": "ANALYZE=true next build",
+    "analyze:server": "ANALYZE=true BUNDLE_ANALYZE=server next build",
+    "analyze:browser": "ANALYZE=true BUNDLE_ANALYZE=browser next build",
+    "analyze-run": "node analyze-bundle.js",
+    "analyze-view": "node analyze-view.js"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -27,6 +32,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.3",
     "isomorphic-dompurify": "^2.28.0",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
@@ -45,6 +51,7 @@
     "zustand": "^5.0.1"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^15.5.4",
     "@types/node": "^22.0.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",

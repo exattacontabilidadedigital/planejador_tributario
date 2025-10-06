@@ -167,6 +167,7 @@ export function transformConfiguracao(config: any): TaxConfig {
     limiteIrpj: sanitizeNumber(config.limiteIrpj || config.limite_irpj || 240000),
     csllAliq: sanitizeNumber(config.csllAliq || config.csll_aliq || 9),
     issAliq: sanitizeNumber(config.issAliq || config.iss_aliq || 0),
+    periodoPagamento: (config.periodoPagamento || 'mensal') as any,
     
     // Compras e CMV
     comprasInternas: sanitizeNumber(config.comprasInternas || config.compras_internas || 0),
@@ -243,6 +244,7 @@ function getDefaultConfig(): TaxConfig {
     limiteIrpj: 240000,
     csllAliq: 9,
     issAliq: 0,
+    periodoPagamento: 'mensal',
     
     // Compras e CMV
     comprasInternas: 100,

@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation"
 import { useEmpresasStore } from "@/stores/empresas-store"
 import { useCenariosStore } from "@/stores/cenarios-store"
 import { useTaxStore } from "@/hooks/use-tax-store"
+import { useMemoriaICMS } from "@/hooks/use-memoria-icms"
+import { useMemoriaPISCOFINS } from "@/hooks/use-memoria-pis-cofins"
+import { useMemoriaIRPJCSLL } from "@/hooks/use-memoria-irpj-csll"
+import { useDRECalculation } from "@/hooks/use-dre-calculation"
+import { MemoriasCalculoService } from "@/services/memorias-calculo-service"
 import { CenariosErrorBoundary } from "@/components/cenarios-error-boundary"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,6 +35,12 @@ export default function EditarCenarioPage({
   const { getEmpresa } = useEmpresasStore()
   const { getCenario, updateCenario, aprovarCenario, fetchCenarios } = useCenariosStore()
   const { config, updateConfig } = useTaxStore()
+  
+  // Hooks para cálculo de impostos
+  const memoriaICMS = useMemoriaICMS(config)
+  const memoriaPISCOFINS = useMemoriaPISCOFINS(config)
+  const memoriaIRPJCSLL = useMemoriaIRPJCSLL(config)
+  const dre = useDRECalculation(config)
   
   // Estados para hidratação
   const [mounted, setMounted] = useState(false)
@@ -100,7 +111,13 @@ export default function EditarCenarioPage({
   }
 
   const handleSalvar = async () => {
+    console.log('🔵🔵🔵 [PÁGINA] handleSalvar CHAMADO! 🔵🔵🔵')
+    console.log('📦 [PÁGINA] Config atual do useTaxStore:', config)
+    console.log('🔍 [PÁGINA] Despesas no config:', config.despesasDinamicas)
+    console.log('🔍 [PÁGINA] Quantidade de despesas:', config.despesasDinamicas?.length || 0)
+    
     if (!cenario) {
+      console.log('❌ [PÁGINA] Cenário não encontrado!')
       toast({
         title: "Erro",
         description: "Cenário não encontrado",
@@ -109,6 +126,9 @@ export default function EditarCenarioPage({
       return
     }
 
+    console.log('✅ [PÁGINA] Cenário encontrado:', cenario.nome)
+    console.log('🔑 [PÁGINA] ID do cenário:', cenarioId)
+    
     try {
       // Função para extrair mês do nome do cenário
       const extrairMesDoNome = (nomeCenario: string): number | null => {
@@ -140,11 +160,54 @@ export default function EditarCenarioPage({
         return null
       }
 
+      // 🔢 CALCULAR RESULTADOS COM BASE NA CONFIG ATUAL
+      console.log('🔢 [CENÁRIO] Recalculando impostos antes de salvar rascunho...')
+      
+      const resultados = {
+        icms: {
+          totalDebitos: memoriaICMS.totalDebitos,
+          totalCreditos: memoriaICMS.totalCreditos,
+          icmsAPagar: memoriaICMS.icmsAPagar,
+        },
+        pisCofins: {
+          pisAPagar: memoriaPISCOFINS.pisAPagar,
+          cofinsAPagar: memoriaPISCOFINS.cofinsAPagar,
+          totalPISCOFINS: memoriaPISCOFINS.totalPISCOFINS,
+        },
+        irpjCsll: {
+          irpjBase: memoriaIRPJCSLL.irpjBase.valor,
+          irpjAdicional: memoriaIRPJCSLL.irpjAdicional.valor,
+          totalIRPJ: memoriaIRPJCSLL.totalIRPJ,
+          csll: memoriaIRPJCSLL.csll.valor,
+          totalIRPJCSLL: memoriaIRPJCSLL.totalIRPJ + memoriaIRPJCSLL.csll.valor,
+        },
+        dre: {
+          receitaBruta: dre.receitaBrutaVendas,
+          receitaLiquida: dre.receitaLiquida,
+          lucroLiquido: dre.lucroLiquido,
+        },
+        totalImpostos: 
+          memoriaICMS.icmsAPagar +
+          memoriaPISCOFINS.totalPISCOFINS +
+          memoriaIRPJCSLL.totalIRPJ +
+          memoriaIRPJCSLL.csll.valor,
+      }
+
+      console.log('💰 [CENÁRIO] Resultados calculados:', {
+        ICMS: resultados.icms.icmsAPagar,
+        PIS: resultados.pisCofins.pisAPagar,
+        COFINS: resultados.pisCofins.cofinsAPagar,
+        IRPJ: resultados.irpjCsll.totalIRPJ,
+        CSLL: resultados.irpjCsll.csll,
+        TOTAL: resultados.totalImpostos,
+      })
+
       // Preparar dados para atualização
       const dadosAtualizacao: any = {
         nome: nomeEditavel,
         descricao: descricaoEditavel,
         configuracao: config,
+        resultados: resultados, // ✅ INCLUIR RESULTADOS RECALCULADOS
       }
 
       // Se o nome mudou, tentar extrair o mês e atualizar
@@ -162,13 +225,34 @@ export default function EditarCenarioPage({
       }
 
       // Atualiza o cenário com a config atual e informações editadas
+      console.log('🚀 [PÁGINA - handleSalvar] Chamando updateCenario...')
+      console.log('   ID:', cenarioId)
+      console.log('   Dados:', dadosAtualizacao)
+      
       await updateCenario(cenarioId, dadosAtualizacao)
+      
+      // 💾 SALVAR MEMÓRIAS DE CÁLCULO NAS TABELAS
+      console.log('💾 [CENÁRIO] Salvando memórias de cálculo no banco...')
+      try {
+        await MemoriasCalculoService.salvarTodasMemorias(
+          cenarioId,
+          memoriaICMS,
+          memoriaPISCOFINS,
+          memoriaIRPJCSLL
+        )
+      } catch (error) {
+        console.error('⚠️ [CENÁRIO] Erro ao salvar memórias (continuando):', error)
+      }
+      
+      console.log('✅ [PÁGINA - handleSalvar] updateCenario concluído!')
 
       setEditandoNome(false)
 
+      const qtdDespesas = config.despesasDinamicas?.length || 0
+      
       toast({
-        title: "Cenário salvo!",
-        description: `${nomeEditavel} foi atualizado.`,
+        title: "✅ Cenário salvo!",
+        description: `${nomeEditavel} foi atualizado. ${qtdDespesas} despesas sincronizadas.`,
       })
     } catch (error) {
       console.error('Erro ao salvar cenário:', error)
@@ -221,11 +305,54 @@ export default function EditarCenarioPage({
         return null
       }
 
+      // 🔢 CALCULAR RESULTADOS COM BASE NA CONFIG ATUAL
+      console.log('🔢 [CENÁRIO] Recalculando impostos antes de salvar...')
+      
+      const resultados = {
+        icms: {
+          totalDebitos: memoriaICMS.totalDebitos,
+          totalCreditos: memoriaICMS.totalCreditos,
+          icmsAPagar: memoriaICMS.icmsAPagar,
+        },
+        pisCofins: {
+          pisAPagar: memoriaPISCOFINS.pisAPagar,
+          cofinsAPagar: memoriaPISCOFINS.cofinsAPagar,
+          totalPISCOFINS: memoriaPISCOFINS.totalPISCOFINS,
+        },
+        irpjCsll: {
+          irpjBase: memoriaIRPJCSLL.irpjBase.valor,
+          irpjAdicional: memoriaIRPJCSLL.irpjAdicional.valor,
+          totalIRPJ: memoriaIRPJCSLL.totalIRPJ,
+          csll: memoriaIRPJCSLL.csll.valor,
+          totalIRPJCSLL: memoriaIRPJCSLL.totalIRPJ + memoriaIRPJCSLL.csll.valor,
+        },
+        dre: {
+          receitaBruta: dre.receitaBrutaVendas,
+          receitaLiquida: dre.receitaLiquida,
+          lucroLiquido: dre.lucroLiquido,
+        },
+        totalImpostos: 
+          memoriaICMS.icmsAPagar +
+          memoriaPISCOFINS.totalPISCOFINS +
+          memoriaIRPJCSLL.totalIRPJ +
+          memoriaIRPJCSLL.csll.valor,
+      }
+
+      console.log('💰 [CENÁRIO] Resultados calculados:', {
+        ICMS: resultados.icms.icmsAPagar,
+        PIS: resultados.pisCofins.pisAPagar,
+        COFINS: resultados.pisCofins.cofinsAPagar,
+        IRPJ: resultados.irpjCsll.totalIRPJ,
+        CSLL: resultados.irpjCsll.csll,
+        TOTAL: resultados.totalImpostos,
+      })
+
       // Preparar dados para atualização
       const dadosAtualizacao: any = {
         nome: nomeEditavel,
         descricao: descricaoEditavel,
         configuracao: config,
+        resultados: resultados, // ✅ INCLUIR RESULTADOS RECALCULADOS
       }
 
       // Se o nome mudou, tentar extrair o mês e atualizar
@@ -238,9 +365,20 @@ export default function EditarCenarioPage({
       }
 
       // Primeiro salva as alterações
+      console.log('💾 [CENÁRIO] Salvando cenário com resultados atualizados...')
       await updateCenario(cenarioId, dadosAtualizacao)
       
+      // 💾 SALVAR MEMÓRIAS DE CÁLCULO NAS TABELAS
+      console.log('💾 [CENÁRIO] Salvando memórias de cálculo no banco...')
+      await MemoriasCalculoService.salvarTodasMemorias(
+        cenarioId,
+        memoriaICMS,
+        memoriaPISCOFINS,
+        memoriaIRPJCSLL
+      )
+      
       // Depois aprova o cenário
+      console.log('✅ [CENÁRIO] Aprovando cenário...')
       await aprovarCenario(cenarioId)
       
       // Força um refresh dos cenários para garantir que o status seja atualizado

@@ -25,6 +25,9 @@ const DEFAULT_CONFIG: TaxConfig = {
   limiteIrpj: 20000,
   csllAliq: 9,
   issAliq: 5,
+  
+  // Período de Apuração IRPJ/CSLL
+  periodoPagamento: 'mensal',
 
   // Valores Financeiros
   receitaBruta: 1000000,

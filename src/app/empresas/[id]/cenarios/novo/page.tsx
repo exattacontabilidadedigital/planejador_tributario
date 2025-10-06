@@ -43,6 +43,7 @@ export default function NovoCenarioPage({
   const [nome, setNome] = useState("")
   const [descricao, setDescricao] = useState("")
   const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodo>("mensal")
+  const [periodoPagamento, setPeriodoPagamento] = useState<'mensal' | 'trimestral' | 'anual'>('mensal')
   const [ano, setAno] = useState(2025) // Valor fixo para evitar hidratação mismatch
   const [mes, setMes] = useState(10) // Valor fixo para evitar hidratação mismatch
   const [trimestre, setTrimestre] = useState<1 | 2 | 3 | 4>(4)
@@ -124,6 +125,12 @@ export default function NovoCenarioPage({
     const nomeDefinitivo = nome.trim() || gerarNomeAutomatico()
     const periodo = calcularPeriodo()
 
+    // Atualizar config com o período de pagamento
+    const configComPeriodo = {
+      ...config,
+      periodoPagamento,
+    }
+
     try {
       const novoCenario = await addCenario(
         {
@@ -131,8 +138,9 @@ export default function NovoCenarioPage({
           descricao: descricao.trim() || undefined,
           periodo,
           status: 'rascunho',
+          periodoPagamento,
         },
-        config
+        configComPeriodo
       )
 
       toast({
@@ -224,6 +232,42 @@ export default function NovoCenarioPage({
                   <SelectItem value="anual">Anual</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Período de Apuração IRPJ/CSLL */}
+            <div className="space-y-2">
+              <Label htmlFor="periodoPagamento">Período de Apuração IRPJ/CSLL *</Label>
+              <Select
+                value={periodoPagamento}
+                onValueChange={(value) => setPeriodoPagamento(value as 'mensal' | 'trimestral' | 'anual')}
+              >
+                <SelectTrigger id="periodoPagamento">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mensal">
+                    <div className="flex flex-col">
+                      <span>Mensal</span>
+                      <span className="text-xs text-muted-foreground">Limite R$ 20.000 para adicional de 10%</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="trimestral">
+                    <div className="flex flex-col">
+                      <span>Trimestral</span>
+                      <span className="text-xs text-muted-foreground">Limite R$ 60.000 para adicional de 10%</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="anual">
+                    <div className="flex flex-col">
+                      <span>Anual</span>
+                      <span className="text-xs text-muted-foreground">Limite R$ 240.000 para adicional de 10%</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Define o limite para incidência do adicional de 10% do IRPJ sobre o Lucro Real
+              </p>
             </div>
 
             {/* Ano */}

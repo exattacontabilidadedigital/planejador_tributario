@@ -25,6 +25,9 @@ export interface Cenario {
   descricao?: string
   periodo: PeriodoCenario
   
+  // Período de Apuração IRPJ/CSLL
+  periodoPagamento?: 'mensal' | 'trimestral' | 'anual'
+  
   // Dados do planejamento - CORRIGIDO: usar 'configuracao' em vez de 'config'
   configuracao: TaxConfig
   
@@ -41,6 +44,10 @@ export interface Cenario {
   criado_por?: string
   tags?: string[]
   
+  // Resultados calculados (vindos dos hooks React da UI)
+  resultados?: any // JSONB com impostos calculados
+  dados_mensais?: any // JSONB com dados mensais
+  
   // Metadados
   criadoEm: string // ISO date string (created_at)
   atualizadoEm: string // ISO date string (updated_at)
@@ -50,5 +57,9 @@ export interface CenarioFormData {
   nome: string
   descricao?: string
   periodo: PeriodoCenario
+  periodoPagamento?: 'mensal' | 'trimestral' | 'anual'
   status: StatusCenario
+  // Campos opcionais para salvar resultados já calculados pela UI
+  resultados?: any // JSONB com impostos calculados
+  dados_mensais?: any // JSONB com dados mensais
 }

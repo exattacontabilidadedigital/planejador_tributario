@@ -18,6 +18,8 @@ export interface DespesaItem {
 // TIPOS DE CONFIGURAÇÃO
 // ========================================
 
+export type PeriodoApuracaoIRPJ = 'mensal' | 'trimestral' | 'anual';
+
 export interface TaxConfig {
   // Alíquotas
   icmsInterno: number;
@@ -32,6 +34,9 @@ export interface TaxConfig {
   limiteIrpj: number;
   csllAliq: number;
   issAliq: number;
+  
+  // Período de Apuração do IRPJ/CSLL
+  periodoPagamento: PeriodoApuracaoIRPJ;
 
   // Valores Financeiros
   receitaBruta: number;
@@ -191,15 +196,27 @@ export interface MemoriaPISCOFINS {
 }
 
 export interface MemoriaIRPJCSLL {
-  // Base de Cálculo
+  // Receita e Deduções
   receitaBruta: number;
+  totalDeducoes: number;
+  receitaLiquida: number;
+  
+  // Custo e Margens
   cmv: number;
+  lucroBruto: number;
+  
+  // Base de Cálculo Operacional
   despesasOperacionais: number;
   lucroAntesIRCSLL: number;
+  
+  // Ajustes Fiscais
   adicoes: number;
   exclusoes: number;
   lucroReal: number;
-  limiteAnual: number;
+  
+  // Período de Apuração e Limites
+  periodoPagamento: PeriodoApuracaoIRPJ;
+  limiteAdicional: number; // R$ 20.000 (mensal), R$ 60.000 (trimestral), R$ 240.000 (anual)
 
   // IRPJ
   irpjBase: {

@@ -454,8 +454,27 @@ export function ConfigPanel() {
                 <CardDescription>Regime Lucro Real</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Período de Apuração */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    📅 Período de Apuração
+                  </label>
+                  <select
+                    value={config.periodoPagamento}
+                    onChange={(e) => updateConfig({ periodoPagamento: e.target.value as any })}
+                    className="w-full px-3 py-2 border rounded-md bg-background"
+                  >
+                    <option value="mensal">Mensal (R$ 20.000)</option>
+                    <option value="trimestral">Trimestral (R$ 60.000)</option>
+                    <option value="anual">Anual (R$ 240.000)</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Define o limite para incidência do adicional de 10% do IRPJ
+                  </p>
+                </div>
+
                 <PercentageInput
-                  label="IRPJ Base (até R$ 20.000/mês)"
+                  label="IRPJ Base (até o limite)"
                   value={config.irpjBase}
                   onChange={(value) => updateConfig({ irpjBase: value })}
                   max={30}

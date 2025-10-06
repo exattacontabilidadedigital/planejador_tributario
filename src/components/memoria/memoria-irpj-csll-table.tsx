@@ -171,7 +171,7 @@ export const MemoriaIRPJCSLLTable = React.memo(function MemoriaIRPJCSLLTable() {
                   <TableCell className="font-medium">
                     IRPJ Adicional (10%)
                     <div className="text-xs text-muted-foreground mt-1">
-                      Sobre o que exceder R$ {formatCurrency(memoria.limiteAnual)} anual
+                      Sobre o que exceder R$ {formatCurrency(memoria.limiteAdicional)} ({memoria.periodoPagamento})
                     </div>
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(memoria.irpjAdicional.base)}</TableCell>

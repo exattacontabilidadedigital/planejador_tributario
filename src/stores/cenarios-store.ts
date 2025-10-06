@@ -7,6 +7,8 @@ import { validateCenarioData, validateCenarioCreate } from '@/lib/validations/ce
 import { log } from '@/lib/logger'
 import { sanitizeCenarioInput, rateLimit } from '@/lib/security'
 import { dataTransformers } from '@/lib/data-transformers'
+// REMOVIDO: import { calcularImpostos, gerarDadosMensais } from '@/lib/calcular-impostos'
+// Os cálculos devem vir dos hooks React que já existem, não de funções simplificadas!
 
 // Cliente Supabase
 const supabase = createClient()
@@ -298,8 +300,12 @@ export const useCenariosStore = create<CenariosState>()(
             throw new Error(`Dados inválidos: ${validation.errors.join(', ')}`)
           }
           
-          // Preparar dados apenas com colunas que existem na tabela
+          // 💰 ACEITAR RESULTADOS SE FORNECIDOS
+          // Os resultados devem vir calculados dos hooks React (useMemoriaICMS, etc)
+          // Não tentamos recalcular aqui porque as fórmulas são complexas
+          console.log('💰 [CENÁRIOS] Salvando resultados fornecidos:', data.resultados ? 'SIM' : 'NÃO')
           
+          // Preparar dados apenas com colunas que existem na tabela
           const insertData = {
             empresa_id: empresaId,
             nome: data.nome.trim(),
@@ -315,6 +321,10 @@ export const useCenariosStore = create<CenariosState>()(
                 ano: ano
               }
             },
+            // 💰 SALVAR RESULTADOS SE FORNECIDOS (calculados pela UI)
+            ...(data.resultados && { resultados: data.resultados }),
+            // 📅 SALVAR DADOS MENSAIS SE FORNECIDOS
+            ...(data.dados_mensais && { dados_mensais: data.dados_mensais }),
             status: status,
           }
           
@@ -332,6 +342,32 @@ export const useCenariosStore = create<CenariosState>()(
           }
           
           console.log('✅ [CENÁRIOS] Cenário criado:', result)
+          
+          // 💼 SINCRONIZAR DESPESAS DINÂMICAS NA TABELA NORMALIZADA
+          const despesasDinamicas = config.despesasDinamicas || []
+          if (despesasDinamicas.length > 0) {
+            console.log(`💼 [CENÁRIOS] Inserindo ${despesasDinamicas.length} despesas dinâmicas na tabela normalizada`)
+            
+            const despesasParaInserir = despesasDinamicas.map(d => ({
+              cenario_id: result.id,
+              descricao: d.descricao,
+              valor: d.valor,
+              tipo: d.tipo,
+              credito: d.credito,
+              categoria: d.categoria || null
+            }))
+            
+            const { error: despesasError } = await supabase
+              .from('despesas_dinamicas')
+              .insert(despesasParaInserir)
+            
+            if (despesasError) {
+              console.warn('⚠️ [CENÁRIOS] Erro ao inserir despesas dinâmicas:', despesasError)
+              // Não lança erro para não bloquear criação do cenário
+            } else {
+              console.log(`✅ [CENÁRIOS] ${despesasDinamicas.length} despesas dinâmicas inseridas com sucesso`)
+            }
+          }
           
           // Mapear resultado para o formato do store
           const configuracao = result.configuracao || {}
@@ -390,7 +426,6 @@ export const useCenariosStore = create<CenariosState>()(
         
         try {
           console.log('🔧 [CENÁRIOS] Atualizando cenário:', id)
-          console.log('📝 [CENÁRIOS] Dados de entrada:', data)
           
           // VALIDAÇÃO ROBUSTA
           if (!id) {
@@ -434,10 +469,24 @@ export const useCenariosStore = create<CenariosState>()(
             if (data.periodo.ano) updateData.ano = data.periodo.ano
             // As demais propriedades do período vão para configuracao
           }
-          if (data.configuracao !== undefined) updateData.configuracao = data.configuracao
-          if (data.status !== undefined) updateData.status = data.status  // Adicionar status
           
-          console.log('📤 [CENÁRIOS] Dados para o banco:', updateData)
+          // 💰 SE ALTEROU A CONFIGURAÇÃO OU RESULTADOS, SALVAR
+          if (data.configuracao !== undefined) {
+            updateData.configuracao = data.configuracao
+          }
+          
+          // 💰 SE FORNECEU RESULTADOS RECALCULADOS, SALVAR
+          // (Os resultados devem vir dos hooks React da UI)
+          if (data.resultados !== undefined) {
+            console.log('💰 [CENÁRIOS] Salvando resultados recalculados pela UI')
+            updateData.resultados = data.resultados
+          }
+          
+          if (data.dados_mensais !== undefined) {
+            updateData.dados_mensais = data.dados_mensais
+          }
+          
+          if (data.status !== undefined) updateData.status = data.status
           
           const { data: result, error } = await supabase
             .from('cenarios')
@@ -447,11 +496,55 @@ export const useCenariosStore = create<CenariosState>()(
             .single()
           
           if (error) {
-            console.error('🚨 [CENÁRIOS] Erro do Supabase:', error)
+            console.error('❌ [CENÁRIOS] Erro ao atualizar:', error.message)
             throw error
           }
           
-          console.log('✅ [CENÁRIOS] Atualização bem-sucedida:', result)
+          console.log('✅ [CENÁRIOS] Cenário atualizado com sucesso')
+          
+          // 💼 SINCRONIZAR DESPESAS DINÂMICAS NA TABELA NORMALIZADA
+          const configuracaoAtual = data.configuracao || result.configuracao || {}
+          const despesasDinamicas = configuracaoAtual.despesasDinamicas || []
+          
+          if (despesasDinamicas.length > 0) {
+            console.log(`� [DESPESAS] Sincronizando ${despesasDinamicas.length} despesas dinâmicas...`)
+          }
+            
+            // 1. Deletar todas as despesas existentes deste cenário
+            
+            const { error: deleteError } = await supabase
+              .from('despesas_dinamicas')
+              .delete()
+              .eq('cenario_id', id)
+            
+            if (deleteError) {
+              console.error('❌ [DESPESAS] Erro ao deletar despesas antigas:', deleteError.message)
+            }
+            
+            // 2. Inserir despesas atualizadas
+            if (despesasDinamicas.length > 0) {
+              const despesasParaInserir = despesasDinamicas.map((d: any) => ({
+                cenario_id: id,
+                descricao: d.descricao,
+                valor: d.valor,
+                tipo: d.tipo,
+                credito: d.credito,
+                categoria: d.categoria || null
+              }))
+              
+              const { error: insertError } = await supabase
+                .from('despesas_dinamicas')
+                .insert(despesasParaInserir)
+              
+              if (insertError) {
+                console.error('❌ [DESPESAS] Erro ao inserir:', insertError.message)
+              } else {
+                const comCredito = despesasParaInserir.filter((d: any) => d.credito === 'com-credito').length
+                const semCredito = despesasParaInserir.filter((d: any) => d.credito === 'sem-credito').length
+                console.log(`✅ [DESPESAS] ${despesasDinamicas.length} despesas sincronizadas (${comCredito} com crédito, ${semCredito} sem crédito)`)
+              }
+              console.log('═══════════════════════════════════════════════════════════\n')
+            }
           
           // Atualizar no store local
           set((state) => {

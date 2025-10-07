@@ -1,6 +1,8 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Trophy, TrendingDown, TrendingUp, DollarSign, Percent } from "lucide-react"
@@ -16,7 +18,34 @@ interface VisualizacaoComparativoProps {
 }
 
 export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativoProps) {
-  const { resultados, nome, descricao } = comparativo
+  const { resultados, nome, descricao, id } = comparativo
+
+  // Compartilhamento
+  const [linkCompartilhado, setLinkCompartilhado] = useState<string | null>(null)
+  const [copiado, setCopiado] = useState(false)
+
+  // Função para gerar token e link
+  const gerarLinkCompartilhado = async () => {
+    // Gerar token aleatório (pode ser substituído por backend/Supabase)
+    const token = Math.random().toString(36).substring(2, 10) + Date.now().toString(36)
+    // Salvar token no backend (TODO: implementar persistência)
+    // await api.salvarTokenCompartilhamento({ comparativoId: id, token })
+    // Gerar link público
+    const url = `${window.location.origin}/comparativos/compartilhado/${token}`
+    setLinkCompartilhado(url)
+    setCopiado(false)
+    // Exemplo: pode salvar no banco via Supabase
+    // ...
+  }
+
+  // Função para copiar link
+  const copiarLink = () => {
+    if (linkCompartilhado) {
+      navigator.clipboard.writeText(linkCompartilhado)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    }
+  }
   
   console.log('🔍 [VISUALIZAÇÃO] Comparativo recebido:', {
     nome,
@@ -269,15 +298,31 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-3xl font-bold">{nome}</h2>
-        {descricao && (
-          <p className="text-muted-foreground mt-1">{descricao}</p>
-        )}
-        <p className="text-sm text-muted-foreground mt-2">
-          {periodoTexto}
-        </p>
+      {/* Header + Compartilhamento */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <div>
+          <h2 className="text-3xl font-bold">{nome}</h2>
+          {descricao && (
+            <p className="text-muted-foreground mt-1">{descricao}</p>
+          )}
+          <p className="text-sm text-muted-foreground mt-2">
+            {periodoTexto}
+          </p>
+        </div>
+        <div className="flex flex-col items-start gap-2">
+          <Button
+            variant="default"
+            onClick={async () => {
+              await gerarLinkCompartilhado();
+              copiarLink();
+            }}
+          >
+            Compartilhar relatório
+          </Button>
+          {copiado && (
+            <span className="text-green-500 text-xs font-semibold mt-1">Link gerado e copiado para área de transferência!</span>
+          )}
+        </div>
       </div>
 
       {/* Card de Destaque - Regime Mais Vantajoso */}

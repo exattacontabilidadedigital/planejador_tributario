@@ -433,38 +433,7 @@ export function ListagemDadosComparativos({ empresaId, ano, onEditarDado, onDupl
             </div>
           </div>
         )}
-              </>
-            )}
-        </CardContent>
-      </Card>
-      
-      {/* AlertDialog para confirmação de remoção */}
-      <AlertDialog open={!!idParaRemover} onOpenChange={(open) => !open && setIdParaRemover(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>⚠️ Confirmar Exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
-              {dadoParaRemover && (
-                <>
-                  <p className="mb-2">Você está prestes a remover permanentemente:</p>
-                  <ul className="list-disc list-inside space-y-1 text-sm">
-                    <li><strong>Regime:</strong> {REGIMES_TRIBUTARIOS.find(r => r.value === dadoParaRemover.regime)?.label || dadoParaRemover.regime}</li>
-                    <li><strong>Período:</strong> {MESES_ANO.find(m => m.value === dadoParaRemover.mes)?.label || dadoParaRemover.mes}</li>
-                  </ul>
-                  <p className="mt-3 text-destructive font-semibold">Esta ação não pode ser desfeita.</p>
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmarRemocao} className="bg-destructive hover:bg-destructive/90">
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      
+        
         {dadosOrdenados.length > 0 && (
           <div className="mt-4 p-4 bg-muted/30 rounded-lg">
             <h4 className="font-semibold text-sm mb-3 text-muted-foreground">💡 Como usar as ações:</h4>
@@ -501,7 +470,35 @@ export function ListagemDadosComparativos({ empresaId, ano, onEditarDado, onDupl
             </div>
           </div>
         )}
-      </CardContent>
+        </CardContent>
+      </Card>
+      
+      {/* AlertDialog para confirmação de remoção */}
+      <AlertDialog open={!!idParaRemover} onOpenChange={(open) => !open && setIdParaRemover(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠️ Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              {dadoParaRemover && (
+                <>
+                  <p className="mb-2">Você está prestes a remover permanentemente:</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    <li><strong>Regime:</strong> {REGIMES_TRIBUTARIOS.find(r => r.value === dadoParaRemover.regime)?.label || dadoParaRemover.regime}</li>
+                    <li><strong>Período:</strong> {MESES_ANO.find(m => m.value === dadoParaRemover.mes)?.label || dadoParaRemover.mes}</li>
+                  </ul>
+                  <p className="mt-3 text-destructive font-semibold">Esta ação não pode ser desfeita.</p>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmarRemocao} className="bg-destructive hover:bg-destructive/90">
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }

@@ -20,6 +20,8 @@ import {
   type CompartilhamentoInfo 
 } from "@/services/compartilhamento-service"
 import { toast } from "sonner"
+import { TooltipExplicativo, ValorComTooltip } from "@/components/ui/tooltip-explicativo"
+import { GlossarioModal } from "@/components/glossario-modal"
 
 interface VisualizacaoComparativoProps {
   comparativo: Comparativo
@@ -428,6 +430,11 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
             </p>
           </div>
           
+          {/* Botão do Glossário */}
+          <div className="hidden md:block">
+            <GlossarioModal />
+          </div>
+          
           {/* Controles de Compartilhamento */}
           <div className="flex flex-col gap-2 min-w-[200px]">
             {!estaCompartilhado ? (
@@ -491,6 +498,11 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
               </div>
             )}
           </div>
+        </div>
+        
+        {/* Botão Glossário Mobile */}
+        <div className="md:hidden">
+          <GlossarioModal />
         </div>
         
         {/* Aviso quando compartilhado */}
@@ -595,11 +607,17 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
                       </CardHeader>
                       <CardContent className="space-y-2">
                         <div>
-                          <p className="text-xs text-muted-foreground">Total de Impostos/Ano</p>
+                          <div className="flex items-center gap-1 mb-1">
+                            <p className="text-xs text-muted-foreground">Total de Impostos/Ano</p>
+                            <TooltipExplicativo termo="economia_tributaria" showIcon={true} iconSize="sm" />
+                          </div>
                           <p className="text-xl font-bold">{formatarMoeda(regime.total)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Carga Tributária</p>
+                          <div className="flex items-center gap-1 mb-1">
+                            <p className="text-xs text-muted-foreground">Carga Tributária</p>
+                            <TooltipExplicativo termo="carga_tributaria" showIcon={true} iconSize="sm" />
+                          </div>
                           <p className="text-lg font-semibold flex items-center gap-2">
                             <Percent className="h-4 w-4" />
                             {formatarPercentual(regime.carga)}
@@ -627,25 +645,37 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Card className="bg-muted/50">
                 <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Economia Anual</p>
+                  <div className="flex items-center gap-1 mb-1">
+                    <p className="text-xs text-muted-foreground">Economia Anual</p>
+                    <TooltipExplicativo termo="economia_tributaria" showIcon={true} iconSize="sm" />
+                  </div>
                   <p className="text-lg font-bold text-green-600">{formatarMoeda(analise.economiaAnual || 0)}</p>
                 </CardContent>
               </Card>
               <Card className="bg-muted/50">
                 <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Economia %</p>
+                  <div className="flex items-center gap-1 mb-1">
+                    <p className="text-xs text-muted-foreground">Economia %</p>
+                    <TooltipExplicativo termo="aliquota_efetiva" showIcon={true} iconSize="sm" />
+                  </div>
                   <p className="text-lg font-bold text-green-600">{formatarPercentual(analise.economiaPercentual || 0)}</p>
                 </CardContent>
               </Card>
               <Card className="bg-muted/50">
                 <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Diferença Maior-Menor</p>
+                  <div className="flex items-center gap-1 mb-1">
+                    <p className="text-xs text-muted-foreground">Diferença Maior-Menor</p>
+                    <TooltipExplicativo termo="economia_tributaria" showIcon={true} iconSize="sm" />
+                  </div>
                   <p className="text-lg font-bold">{formatarMoeda(analise.diferencaMaiorMenor || 0)}</p>
                 </CardContent>
               </Card>
               <Card className="bg-muted/50">
                 <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Regime Recomendado</p>
+                  <div className="flex items-center gap-1 mb-1">
+                    <p className="text-xs text-muted-foreground">Regime Recomendado</p>
+                    <TooltipExplicativo termo={analise.regimeMaisVantajoso} showIcon={true} iconSize="sm" />
+                  </div>
                   <Badge variant="default" className="text-xs">
                     {getNomeRegime(analise.regimeMaisVantajoso)}
                   </Badge>

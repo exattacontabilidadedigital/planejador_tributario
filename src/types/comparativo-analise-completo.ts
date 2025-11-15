@@ -100,6 +100,7 @@ export interface DadosMensalRegime {
   receita: number
   impostos: ImpostosPorTipo
   totalImpostos: number
+  lucro?: number // Alias para lucroLiquido
   lucroLiquido: number
   cargaTributaria: number
 }

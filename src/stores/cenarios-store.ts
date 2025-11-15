@@ -67,7 +67,7 @@ interface CenariosState {
   }
   
   // Operação em andamento para evitar duplicação
-  operacaoEmAndamento: string | null
+  operacaoEmAndamento: string | boolean | null
   
   // Actions
   fetchCenarios: (empresaId?: string) => Promise<void>

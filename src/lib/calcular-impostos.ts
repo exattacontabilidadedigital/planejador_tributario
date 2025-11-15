@@ -19,7 +19,10 @@ export function calcularImpostos(config: TaxConfig) {
                       (config.comprasInterestaduais * (config.icmsSul / 100)) + // Usar alíquota interestadual
                       (config.comprasUso * (config.icmsInterno / 100)) // Usar alíquota interna
   
-  const icmsAPagar = Math.max(0, debitoICMS - creditoICMS)
+  // Se crédito > débito, ICMS = 0 e fica crédito para próxima apuração
+  const saldoICMS = debitoICMS - creditoICMS
+  const icmsAPagar = Math.max(0, saldoICMS)
+  const creditoICMSDisponivelProximaApuracao = Math.abs(Math.min(0, saldoICMS))
   
   // ============================================
   // PIS/COFINS
@@ -46,8 +49,14 @@ export function calcularImpostos(config: TaxConfig) {
   const creditoPIS = (compras + despesasComCredito) * (config.pisAliq / 100)
   const creditoCOFINS = (compras + despesasComCredito) * (config.cofinsAliq / 100)
   
-  const pisAPagar = Math.max(0, debitoPIS - creditoPIS)
-  const cofinsAPagar = Math.max(0, debitoCOFINS - creditoCOFINS)
+  // Se crédito > débito, imposto = 0 e fica crédito para próxima apuração
+  const saldoPIS = debitoPIS - creditoPIS
+  const pisAPagar = Math.max(0, saldoPIS)
+  const creditoPISDisponivelProximaApuracao = Math.abs(Math.min(0, saldoPIS))
+  
+  const saldoCOFINS = debitoCOFINS - creditoCOFINS
+  const cofinsAPagar = Math.max(0, saldoCOFINS)
+  const creditoCOFINSDisponivelProximaApuracao = Math.abs(Math.min(0, saldoCOFINS))
   
   // ============================================
   // IRPJ/CSLL
@@ -106,6 +115,19 @@ export function calcularImpostos(config: TaxConfig) {
     issAPagar,
     cppAPagar,
     inssAPagar,
+    
+    // Créditos disponíveis para próxima apuração
+    creditoICMSDisponivelProximaApuracao,
+    creditoPISDisponivelProximaApuracao,
+    creditoCOFINSDisponivelProximaApuracao,
+    
+    // Débitos e créditos detalhados
+    debitoICMS,
+    creditoICMS,
+    debitoPIS,
+    creditoPIS,
+    debitoCOFINS,
+    creditoCOFINS,
     
     // Bases de cálculo
     baseCalculoICMS: vendasSemST,

@@ -147,6 +147,7 @@ export interface MemoriaICMS {
   totalDebitos: number;
   totalCreditos: number;
   icmsAPagar: number;
+  creditoDisponivelProximaApuracao: number;
 }
 
 export interface MemoriaPISCOFINS {
@@ -189,9 +190,11 @@ export interface MemoriaPISCOFINS {
   totalDebitosPIS: number;
   totalCreditosPIS: number;
   pisAPagar: number;
+  creditoPISDisponivelProximaApuracao: number;
   totalDebitosCOFINS: number;
   totalCreditosCOFINS: number;
   cofinsAPagar: number;
+  creditoCOFINSDisponivelProximaApuracao: number;
   totalPISCOFINS: number;
 }
 

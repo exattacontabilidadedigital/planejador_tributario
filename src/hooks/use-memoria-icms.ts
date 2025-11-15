@@ -94,7 +94,10 @@ export function useMemoriaICMS(config: TaxConfig): MemoriaICMS {
       creditoST.valor +
       outrosCreditos.valor;
 
-    const icmsAPagar = Math.max(0, totalDebitos - totalCreditos);
+    // Se crédito > débito, ICMS = 0 e fica crédito para próxima apuração
+    const saldoICMS = totalDebitos - totalCreditos;
+    const icmsAPagar = Math.max(0, saldoICMS);
+    const creditoDisponivelProximaApuracao = Math.abs(Math.min(0, saldoICMS));
 
     return {
       vendasInternas,
@@ -111,6 +114,7 @@ export function useMemoriaICMS(config: TaxConfig): MemoriaICMS {
       totalDebitos,
       totalCreditos,
       icmsAPagar,
+      creditoDisponivelProximaApuracao,
     };
   }, [config]);
 }

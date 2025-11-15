@@ -59,12 +59,17 @@ export function useMemoriaPISCOFINS(config: TaxConfig): MemoriaPISCOFINS {
     const totalDebitosPIS = debitoPIS.valor;
     const totalCreditosPIS = creditoPISCompras.valor + creditoPISDespesas.valor;
 
-    const pisAPagar = Math.max(0, totalDebitosPIS - totalCreditosPIS);
+    // Se crédito > débito, imposto = 0 e fica crédito para próxima apuração
+    const saldoPIS = totalDebitosPIS - totalCreditosPIS;
+    const pisAPagar = Math.max(0, saldoPIS);
+    const creditoPISDisponivelProximaApuracao = Math.abs(Math.min(0, saldoPIS));
 
     const totalDebitosCOFINS = debitoCOFINS.valor;
     const totalCreditosCOFINS = creditoCOFINSCompras.valor + creditoCOFINSDespesas.valor;
 
-    const cofinsAPagar = Math.max(0, totalDebitosCOFINS - totalCreditosCOFINS);
+    const saldoCOFINS = totalDebitosCOFINS - totalCreditosCOFINS;
+    const cofinsAPagar = Math.max(0, saldoCOFINS);
+    const creditoCOFINSDisponivelProximaApuracao = Math.abs(Math.min(0, saldoCOFINS));
 
     const totalPISCOFINS = pisAPagar + cofinsAPagar;
 
@@ -79,9 +84,11 @@ export function useMemoriaPISCOFINS(config: TaxConfig): MemoriaPISCOFINS {
       totalDebitosPIS,
       totalCreditosPIS,
       pisAPagar,
+      creditoPISDisponivelProximaApuracao,
       totalDebitosCOFINS,
       totalCreditosCOFINS,
       cofinsAPagar,
+      creditoCOFINSDisponivelProximaApuracao,
       totalPISCOFINS,
     };
   }, [config]);

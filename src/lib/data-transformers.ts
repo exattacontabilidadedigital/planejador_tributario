@@ -125,7 +125,7 @@ export function interfaceToDb(cenario: Cenario): Partial<DbCenario> {
     tipo_periodo: cenario.periodo.tipo, // camelCase -> snake_case
     data_inicio: cenario.periodo.inicio, // camelCase -> snake_case
     data_fim: cenario.periodo.fim, // camelCase -> snake_case
-    mes: cenario.periodo.mes,
+    mes: cenario.periodo.mes ? parseInt(cenario.periodo.mes) : undefined,
     trimestre: cenario.periodo.trimestre,
     criado_por: cenario.criado_por,
     tags: cenario.tags || []

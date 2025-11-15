@@ -1,17 +1,25 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Trophy, TrendingDown, TrendingUp, DollarSign, Percent } from "lucide-react"
+import { Trophy, TrendingDown, TrendingUp, DollarSign, Percent, Share2, Link2, Lock, Check } from "lucide-react"
 import type { Comparativo } from "@/types/comparativo-analise"
 import { GraficoComparacaoImpostos } from "./graficos/grafico-comparacao-impostos"
 import { GraficoCargaTributaria } from "./graficos/grafico-carga-tributaria"
 import { GraficoEvolucaoRegimes } from "./graficos/grafico-evolucao-regimes"
 import { GraficoComparacaoLucros } from "./graficos/grafico-comparacao-lucros"
 import { GraficoDashboardComparativo } from "./graficos/grafico-dashboard-comparativo"
+import { 
+  ativarCompartilhamentoPublico, 
+  desativarCompartilhamentoPublico,
+  verificarCompartilhamento,
+  copiarLinkPublico,
+  type CompartilhamentoInfo 
+} from "@/services/compartilhamento-service"
+import { toast } from "sonner"
 
 interface VisualizacaoComparativoProps {
   comparativo: Comparativo
@@ -21,29 +29,71 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
   const { resultados, nome, descricao, id } = comparativo
 
   // Compartilhamento
-  const [linkCompartilhado, setLinkCompartilhado] = useState<string | null>(null)
+  const [compartilhamentoInfo, setCompartilhamentoInfo] = useState<CompartilhamentoInfo | null>(null)
+  const [estaCompartilhado, setEstaCompartilhado] = useState(false)
+  const [carregando, setCarregando] = useState(false)
   const [copiado, setCopiado] = useState(false)
 
-  // Função para gerar token e link
+  // Verificar status de compartilhamento ao carregar
+  useEffect(() => {
+    async function verificarStatus() {
+      const status = await verificarCompartilhamento(id)
+      if (status?.compartilhado && status.token) {
+        setEstaCompartilhado(true)
+        setCompartilhamentoInfo({
+          token: status.token,
+          expiraEm: status.expiraEm || '',
+          urlPublica: `${window.location.origin}/comparativos/compartilhado/${status.token}`
+        })
+      }
+    }
+    verificarStatus()
+  }, [id])
+
+  // Função para gerar link de compartilhamento
   const gerarLinkCompartilhado = async () => {
-    // Gerar token aleatório (pode ser substituído por backend/Supabase)
-    const token = Math.random().toString(36).substring(2, 10) + Date.now().toString(36)
-    // Salvar token no backend (TODO: implementar persistência)
-    // await api.salvarTokenCompartilhamento({ comparativoId: id, token })
-    // Gerar link público
-    const url = `${window.location.origin}/comparativos/compartilhado/${token}`
-    setLinkCompartilhado(url)
-    setCopiado(false)
-    // Exemplo: pode salvar no banco via Supabase
-    // ...
+    try {
+      setCarregando(true)
+      const info = await ativarCompartilhamentoPublico(id, 30) // 30 dias de validade
+      setCompartilhamentoInfo(info)
+      setEstaCompartilhado(true)
+      toast.success('Link de compartilhamento gerado com sucesso!')
+    } catch (error) {
+      console.error('Erro ao gerar link:', error)
+      toast.error('Erro ao gerar link de compartilhamento')
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  // Função para desativar compartilhamento
+  const desativarCompartilhamento = async () => {
+    try {
+      setCarregando(true)
+      await desativarCompartilhamentoPublico(id)
+      setCompartilhamentoInfo(null)
+      setEstaCompartilhado(false)
+      setCopiado(false)
+      toast.success('Compartilhamento desativado')
+    } catch (error) {
+      console.error('Erro ao desativar:', error)
+      toast.error('Erro ao desativar compartilhamento')
+    } finally {
+      setCarregando(false)
+    }
   }
 
   // Função para copiar link
-  const copiarLink = () => {
-    if (linkCompartilhado) {
-      navigator.clipboard.writeText(linkCompartilhado)
-      setCopiado(true)
-      setTimeout(() => setCopiado(false), 2000)
+  const copiarLink = async () => {
+    if (compartilhamentoInfo?.urlPublica) {
+      const sucesso = await copiarLinkPublico(compartilhamentoInfo.urlPublica)
+      if (sucesso) {
+        setCopiado(true)
+        toast.success('Link copiado para área de transferência!')
+        setTimeout(() => setCopiado(false), 3000)
+      } else {
+        toast.error('Erro ao copiar link')
+      }
     }
   }
   
@@ -366,30 +416,94 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
   return (
     <div className="space-y-6">
       {/* Header + Compartilhamento */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-        <div>
-          <h2 className="text-3xl font-bold">{nome}</h2>
-          {descricao && (
-            <p className="text-muted-foreground mt-1">{descricao}</p>
-          )}
-          <p className="text-sm text-muted-foreground mt-2">
-            {periodoTexto}
-          </p>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div className="flex-1">
+            <h2 className="text-3xl font-bold">{nome}</h2>
+            {descricao && (
+              <p className="text-muted-foreground mt-1">{descricao}</p>
+            )}
+            <p className="text-sm text-muted-foreground mt-2">
+              {periodoTexto}
+            </p>
+          </div>
+          
+          {/* Controles de Compartilhamento */}
+          <div className="flex flex-col gap-2 min-w-[200px]">
+            {!estaCompartilhado ? (
+              <Button
+                variant="default"
+                onClick={gerarLinkCompartilhado}
+                disabled={carregando}
+                className="w-full"
+              >
+                {carregando ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Compartilhar Relatório
+                  </>
+                )}
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <Badge variant="secondary" className="w-full justify-center py-1">
+                  <Link2 className="h-3 w-3 mr-1" />
+                  Compartilhamento Ativo
+                </Badge>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={copiarLink}
+                    className="flex-1"
+                  >
+                    {copiado ? (
+                      <>
+                        <Check className="h-4 w-4 mr-1" />
+                        Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Link2 className="h-4 w-4 mr-1" />
+                        Copiar Link
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={desativarCompartilhamento}
+                    disabled={carregando}
+                  >
+                    <Lock className="h-4 w-4" />
+                  </Button>
+                </div>
+                {compartilhamentoInfo?.expiraEm && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Expira em: {new Date(compartilhamentoInfo.expiraEm).toLocaleDateString('pt-BR')}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex flex-col items-start gap-2">
-          <Button
-            variant="default"
-            onClick={async () => {
-              await gerarLinkCompartilhado();
-              copiarLink();
-            }}
-          >
-            Compartilhar relatório
-          </Button>
-          {copiado && (
-            <span className="text-green-500 text-xs font-semibold mt-1">Link gerado e copiado para área de transferência!</span>
-          )}
-        </div>
+        
+        {/* Aviso quando compartilhado */}
+        {estaCompartilhado && (
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+            <p className="text-sm text-blue-800 dark:text-blue-200 flex items-start gap-2">
+              <Share2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span>
+                Este relatório está público. Qualquer pessoa com o link pode visualizá-lo.
+              </span>
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Card de Destaque - Regime Mais Vantajoso */}

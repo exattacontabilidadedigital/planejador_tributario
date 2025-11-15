@@ -170,23 +170,59 @@ export function WizardCriarComparativoCompleto({
       // Filtrar e transformar dados do Supabase para formato do wizard
       const cenariosFormatados: CenarioDisponivel[] = cenarios
         .map(c => {
-          // Extrair período do cenário (objeto JSON ou colunas individuais)
-          const periodo = c.periodo || {}
+          console.log('🔍 [PROCESSAR CENÁRIO]', {
+            id: c.id,
+            nome: c.nome,
+            ano: c.ano,
+            mes: c.mes,
+            data_inicio: c.data_inicio,
+            data_fim: c.data_fim,
+            temConfiguracao: !!c.configuracao,
+            configuracao: c.configuracao
+          })
           
-          // Extrair ano do período (tentar várias fontes)
-          const anoCenario = periodo.ano ||  // Prioridade: periodo.ano
-                            c.ano ||          // Ou coluna 'ano'
-                            (c.data_inicio ? new Date(c.data_inicio).getFullYear() : null) || // Ou data_inicio
-                            new Date().getFullYear() // Ou ano atual como fallback
-
-          // Extrair datas de início e fim (priorizar objeto periodo)
-          const dataInicio = periodo.inicio || c.data_inicio
-          const dataFim = periodo.fim || c.data_fim
-
+          // Extrair período do cenário
+          let periodo: any = {}
+          
+          // Se configuracao é string, fazer parse
+          if (typeof c.configuracao === 'string') {
+            try {
+              const config = JSON.parse(c.configuracao)
+              periodo = config.periodo || {}
+            } catch (e) {
+              console.warn('⚠️ Erro ao fazer parse de configuracao:', e)
+            }
+          } else if (c.configuracao) {
+            periodo = c.configuracao.periodo || {}
+          }
+          
+          // Extrair ano do período
+          const anoCenario = periodo.ano || c.ano || new Date().getFullYear()
+          
+          // Extrair datas de início e fim
+          let dataInicio = periodo.inicio || c.data_inicio
+          let dataFim = periodo.fim || c.data_fim
+          
+          // Se não tem datas mas tem mes e ano, criar datas
+          if (!dataInicio && c.mes && c.ano) {
+            const mesNum = typeof c.mes === 'string' ? parseInt(c.mes) : c.mes
+            dataInicio = new Date(c.ano, mesNum - 1, 1).toISOString()
+            dataFim = new Date(c.ano, mesNum, 0).toISOString() // Último dia do mês
+            
+            console.log('📅 [CRIAR DATAS] Criando datas a partir de mes/ano:', {
+              mes: c.mes,
+              ano: c.ano,
+              dataInicio,
+              dataFim
+            })
+          }
+          
           if (!dataInicio || !dataFim) {
             console.warn('⚠️ Cenário sem datas válidas:', { 
               id: c.id, 
-              nome: c.nome, 
+              nome: c.nome,
+              mes: c.mes,
+              ano: c.ano,
               periodo, 
               data_inicio: c.data_inicio, 
               data_fim: c.data_fim 

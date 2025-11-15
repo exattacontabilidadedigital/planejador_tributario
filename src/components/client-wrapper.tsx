@@ -2,6 +2,7 @@
 
 import { ErrorBoundary } from "react-error-boundary";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 
 function ErrorFallback({ error }: { error: Error }) {
@@ -39,6 +40,7 @@ export function ClientWrapper({ children }: ClientWrapperProps) {
       >
         {children}
         <Toaster />
+        <Sonner richColors position="top-right" />
       </ThemeProvider>
     </ErrorBoundary>
   );

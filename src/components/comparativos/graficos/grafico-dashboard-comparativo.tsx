@@ -46,10 +46,38 @@ export function GraficoDashboardComparativo({
   const [modalAberto, setModalAberto] = useState(false)
   const [regimeSelecionado, setRegimeSelecionado] = useState<'lucro_real' | 'lucro_presumido' | 'simples_nacional' | null>(null)
   const [dadosDetalhados, setDadosDetalhados] = useState<any[] | null>(null)
+  const [mesesExpandidos, setMesesExpandidos] = useState<Set<number>>(new Set())
   
   // Estado para tipo de visualização
   type TipoVisualizacao = 'linha' | 'barra' | 'barraEmpilhada' | 'pizza' | 'radar'
   const [tipoVisualizacao, setTipoVisualizacao] = useState<TipoVisualizacao>('linha')
+  
+  // Estado para controlar modo do gráfico de pizza (total por regime ou detalhamento)
+  const [modoPizza, setModoPizza] = useState<'regimes' | 'detalhamento'>('regimes')
+  
+  // Função para alternar expansão de um mês
+  const toggleMesExpandido = (index: number) => {
+    setMesesExpandidos(prev => {
+      const novo = new Set(prev)
+      if (novo.has(index)) {
+        novo.delete(index)
+      } else {
+        novo.add(index)
+      }
+      return novo
+    })
+  }
+  
+  // Função para expandir/contrair todos
+  const expandirTodos = () => {
+    if (dadosDetalhados) {
+      setMesesExpandidos(new Set(dadosDetalhados.map((_, i) => i)))
+    }
+  }
+  
+  const contrairTodos = () => {
+    setMesesExpandidos(new Set())
+  }
   
   // Função para abrir modal com detalhes
   const abrirDetalhamento = (regime: 'lucro_real' | 'lucro_presumido' | 'simples_nacional') => {
@@ -608,7 +636,7 @@ export function GraficoDashboardComparativo({
       )}
 
       {/* Card do Gráfico */}
-      <Card className="col-span-full">
+      <Card className="col-span-full relative z-10">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -664,7 +692,7 @@ export function GraficoDashboardComparativo({
           </div>
         </CardHeader>
       <CardContent>
-        <div className="w-full h-[400px]">
+        <div className={`w-full ${tipoVisualizacao === 'pizza' && modoPizza === 'regimes' ? 'h-auto' : 'h-[400px]'}`}>
           {tipoVisualizacao === 'linha' && (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
@@ -829,36 +857,196 @@ export function GraficoDashboardComparativo({
           </ResponsiveContainer>
           )}
             
-            {/* Gráfico de Pizza - Detalhamento por Imposto */}
+            {/* Gráfico de Pizza - Comparação entre Regimes ou Detalhamento por Imposto */}
             {tipoVisualizacao === 'pizza' && (
-          <div className="w-full h-full grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
-            {(() => {
-              // Cores para cada tipo de imposto
-              const CORES_IMPOSTOS = {
-                icms: '#3b82f6',    // Azul
-                pis: '#8b5cf6',     // Roxo
-                cofins: '#ec4899',  // Rosa
-                irpj: '#f97316',    // Laranja
-                csll: '#eab308',    // Amarelo
-                iss: '#14b8a6',     // Turquesa
-                cpp: '#6366f1',     // Índigo
-                inss: '#06b6d4',    // Cyan
-                das: '#10b981',     // Verde
-                outros: '#6b7280'   // Cinza
-              }
+          <div className="w-full h-full">
+            {/* Controles de modo de visualização da pizza */}
+            <div className="flex justify-center gap-2 mb-4">
+              <Button
+                variant={modoPizza === 'regimes' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setModoPizza('regimes')}
+              >
+                Comparação entre Regimes
+              </Button>
+              <Button
+                variant={modoPizza === 'detalhamento' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setModoPizza('detalhamento')}
+              >
+                Detalhamento por Tipo de Imposto
+              </Button>
+            </div>
+            
+            {modoPizza === 'regimes' ? (
+              // MODO 1: Pizza comparando total de impostos por regime
+              <div className="flex flex-col items-center">
+                {(() => {
+                  // Calcular totais de cada regime
+                  const totalReal = (dadosLucroReal || []).reduce((sum, dado) => sum + calcularTotalImpostos(dado), 0)
+                  const totalPresumido = (dadosLucroPresumido || []).reduce((sum, dado) => sum + calcularTotalImpostos(dado), 0)
+                  const totalSimples = (dadosSimplesNacional || []).reduce((sum, dado) => sum + calcularTotalImpostos(dado), 0)
+                  
+                  console.log('📊 [PIZZA REGIMES] Totais calculados:', { totalReal, totalPresumido, totalSimples })
+                  
+                  // Criar dados para pizza de comparação entre regimes
+                  const dadosPizzaRegimes = [
+                    { name: 'Lucro Real', value: totalReal, color: '#ef4444' },
+                    { name: 'Lucro Presumido', value: totalPresumido, color: '#3b82f6' },
+                    { name: 'Simples Nacional', value: totalSimples, color: '#10b981' }
+                  ].filter(item => item.value > 0)
+                  
+                  const totalGeral = dadosPizzaRegimes.reduce((sum, d) => sum + d.value, 0)
+                  
+                  // Encontrar o menor valor (melhor regime)
+                  const menorValor = Math.min(...dadosPizzaRegimes.map(d => d.value))
+                  
+                  return (
+                    <>
+                      <h3 className="text-xl font-bold mb-2 text-center">
+                        Total de Impostos por Regime Tributário - {ano}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4 text-center">
+                        Quanto menor, melhor • Total geral: {formatarMoedaTooltip(totalGeral)}
+                      </p>
+                      
+                      {dadosPizzaRegimes.length > 0 ? (
+                        <>
+                          <ResponsiveContainer width="100%" height={400}>
+                            <PieChart>
+                              <Pie
+                                data={dadosPizzaRegimes}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={({ name, value, percent }: any) => {
+                                  const isMenor = value === menorValor
+                                  return `${name}: ${formatarMoedaTooltip(value)} (${(percent * 100).toFixed(1)}%)${isMenor ? ' ✓' : ''}`
+                                }}
+                                outerRadius={120}
+                                innerRadius={60}
+                                dataKey="value"
+                              >
+                                {dadosPizzaRegimes.map((entry, index) => {
+                                  const isMenor = entry.value === menorValor
+                                  return (
+                                    <Cell 
+                                      key={`cell-regime-${index}`} 
+                                      fill={entry.color}
+                                      stroke={isMenor ? '#fff' : 'none'}
+                                      strokeWidth={isMenor ? 3 : 0}
+                                      opacity={isMenor ? 1 : 0.8}
+                                    />
+                                  )
+                                })}
+                              </Pie>
+                              <Tooltip 
+                                formatter={(value: number, name: string) => [
+                                  formatarMoedaTooltip(value),
+                                  name
+                                ]}
+                              />
+                              <Legend 
+                                formatter={(value: string, entry: any) => {
+                                  const isMenor = entry.payload.value === menorValor
+                                  return `${value}${isMenor ? ' (Melhor Opção ✓)' : ''}`
+                                }}
+                                wrapperStyle={{ fontSize: '14px', fontWeight: 'bold' }}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                          
+                          {/* Ranking de regimes */}
+                          <div className="mt-6 space-y-2 relative z-10">
+                            <h4 className="text-sm font-semibold text-center mb-3">Ranking de Economia:</h4>
+                            {dadosPizzaRegimes
+                              .sort((a, b) => a.value - b.value)
+                              .map((regime, index) => {
+                                const economia = totalGeral > 0 
+                                  ? ((totalGeral - regime.value) / totalGeral * 100)
+                                  : 0
+                                const isMelhor = index === 0
+                                
+                                return (
+                                  <div 
+                                    key={regime.name}
+                                    className={`flex items-center justify-between p-3 rounded-lg border relative ${
+                                      isMelhor ? 'bg-green-50 border-green-300 dark:bg-green-950 dark:border-green-800' : 'bg-muted/50'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-lg font-bold" style={{ color: regime.color }}>
+                                        {index + 1}º
+                                      </span>
+                                      <div>
+                                        <div className="font-medium">{regime.name}</div>
+                                        {isMelhor && <div className="text-xs text-green-600 dark:text-green-400">✓ Melhor opção</div>}
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="font-bold">{formatarMoedaTooltip(regime.value)}</div>
+                                      {index > 0 && (
+                                        <div className="text-xs text-muted-foreground">
+                                          +{formatarMoedaTooltip(regime.value - menorValor)} vs. melhor
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center justify-center text-muted-foreground h-64">
+                          Nenhum dado disponível para comparação
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
+              </div>
+            ) : (
+              // MODO 2: Pizzas com detalhamento por tipo de imposto
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
+                {(() => {
+                  // Cores para cada tipo de imposto
+                  const CORES_IMPOSTOS = {
+                    icms: '#3b82f6',    // Azul
+                    pis: '#8b5cf6',     // Roxo
+                    cofins: '#ec4899',  // Rosa
+                    irpj: '#f97316',    // Laranja
+                    csll: '#eab308',    // Amarelo
+                    iss: '#14b8a6',     // Turquesa
+                    cpp: '#6366f1',     // Índigo
+                    inss: '#06b6d4',    // Cyan
+                    das: '#10b981',     // Verde
+                    outros: '#6b7280'   // Cinza
+                  }
               
               // Função para calcular totais de impostos por tipo para um regime
-              const calcularImpostosPorTipo = (dados: any[]) => {
+              const calcularImpostosPorTipo = (dados: any[], regimeNome: string = '') => {
                 const totais: Record<string, number> = {
                   icms: 0, pis: 0, cofins: 0, irpj: 0, csll: 0,
                   iss: 0, cpp: 0, inss: 0, das: 0, outros: 0
                 }
                 
-                dados?.forEach(dado => {
+                console.log(`📊 [CALCULAR IMPOSTOS] ${regimeNome}:`, {
+                  quantidadeDados: dados?.length || 0,
+                  primeiroItem: dados?.[0]
+                })
+                
+                dados?.forEach((dado, index) => {
+                  console.log(`📊 [CALCULAR IMPOSTOS] ${regimeNome} - Mês ${index + 1}:`, {
+                    impostos: dado.impostos,
+                    impostos_detalhados: dado.impostos_detalhados,
+                    totalImpostos: dado.totalImpostos
+                  })
+                  
                   if (dado.impostos_detalhados) {
                     // Impostos detalhados (objeto)
                     Object.entries(dado.impostos_detalhados).forEach(([key, value]) => {
                       if (totais.hasOwnProperty(key) && typeof value === 'number') {
+                        console.log(`  ✓ impostos_detalhados.${key}: ${value}`)
                         totais[key] += value
                       }
                     })
@@ -866,17 +1054,20 @@ export function GraficoDashboardComparativo({
                     // Impostos como objeto
                     Object.entries(dado.impostos).forEach(([key, value]) => {
                       if (totais.hasOwnProperty(key) && typeof value === 'number') {
+                        console.log(`  ✓ impostos.${key}: ${value}`)
                         totais[key] += value
                       }
                     })
                   }
                 })
                 
+                console.log(`📊 [CALCULAR IMPOSTOS] ${regimeNome} - Totais:`, totais)
+                
                 return totais
               }
               
               // Calcular impostos para Lucro Real
-              const impostosReal = calcularImpostosPorTipo(dadosLucroReal || [])
+              const impostosReal = calcularImpostosPorTipo(dadosLucroReal || [], 'Lucro Real')
               const dadosPizzaReal = Object.entries(impostosReal)
                 .filter(([_, value]) => value > 0)
                 .map(([name, value]) => ({
@@ -897,7 +1088,7 @@ export function GraficoDashboardComparativo({
                 }))
               
               // Calcular impostos para Lucro Presumido
-              const impostosPresumido = calcularImpostosPorTipo(dadosLucroPresumido || [])
+              const impostosPresumido = calcularImpostosPorTipo(dadosLucroPresumido || [], 'Lucro Presumido')
               const dadosPizzaPresumido = Object.entries(impostosPresumido)
                 .filter(([_, value]) => value > 0)
                 .map(([name, value]) => ({
@@ -917,8 +1108,37 @@ export function GraficoDashboardComparativo({
                   }[name] || name.toUpperCase()
                 }))
               
+              // Calcular impostos para Simples Nacional
+              const impostosSimples = calcularImpostosPorTipo(dadosSimplesNacional || [], 'Simples Nacional')
+              const dadosPizzaSimples = Object.entries(impostosSimples)
+                .filter(([_, value]) => value > 0)
+                .map(([name, value]) => ({
+                  name: name.toUpperCase(),
+                  value,
+                  fullName: {
+                    icms: 'ICMS',
+                    pis: 'PIS',
+                    cofins: 'COFINS',
+                    irpj: 'IRPJ',
+                    csll: 'CSLL',
+                    iss: 'ISS',
+                    cpp: 'CPP',
+                    inss: 'INSS',
+                    das: 'DAS',
+                    outros: 'Outros'
+                  }[name] || name.toUpperCase()
+                }))
+              
+              console.log('📊 [PIZZA DETALHAMENTO] Dados calculados:', {
+                impostosReal,
+                impostosPresumido,
+                impostosSimples,
+                dadosPizzaSimples
+              })
+              
               const totalReal = dadosPizzaReal.reduce((sum, d) => sum + d.value, 0)
               const totalPresumido = dadosPizzaPresumido.reduce((sum, d) => sum + d.value, 0)
+              const totalSimples = dadosPizzaSimples.reduce((sum, d) => sum + d.value, 0)
               
               return (
                 <>
@@ -1014,16 +1234,65 @@ export function GraficoDashboardComparativo({
                     </div>
                   )}
                   
-                  {/* Mensagem se não houver dados */}
-                  {(!dadosLucroReal || dadosLucroReal.length === 0) && 
-                   (!dadosLucroPresumido || dadosLucroPresumido.length === 0) && (
-                    <div className="col-span-2 flex items-center justify-center text-muted-foreground">
-                      Nenhum dado disponível para visualização em pizza
+                  {/* Pizza Simples Nacional */}
+                  {dadosSimplesNacional && dadosSimplesNacional.length > 0 && dadosPizzaSimples.length > 0 && (
+                    <div className="flex flex-col items-center">
+                      <h3 className="text-lg font-semibold mb-4 text-center">
+                        Simples Nacional - Composição de Impostos
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Total: {formatarMoedaTooltip(totalSimples)}
+                      </p>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={dadosPizzaSimples}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }: any) => 
+                              percent > 0.05 ? `${name}: ${(percent * 100).toFixed(1)}%` : ''
+                            }
+                            outerRadius={100}
+                            innerRadius={50}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {dadosPizzaSimples.map((entry, index) => (
+                              <Cell 
+                                key={`cell-simples-${index}`} 
+                                fill={CORES_IMPOSTOS[entry.name.toLowerCase() as keyof typeof CORES_IMPOSTOS] || '#6b7280'} 
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            formatter={(value: number, name: string, props: any) => [
+                              formatarMoedaTooltip(value),
+                              props.payload.fullName
+                            ]}
+                          />
+                          <Legend 
+                            formatter={(value: string, entry: any) => entry.payload.fullName}
+                            wrapperStyle={{ fontSize: '12px' }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
                     </div>
                   )}
-                </>
-              )
-            })()}
+                  
+                    {/* Mensagem se não houver dados */}
+                    {(!dadosLucroReal || dadosLucroReal.length === 0) && 
+                     (!dadosLucroPresumido || dadosLucroPresumido.length === 0) &&
+                     (!dadosSimplesNacional || dadosSimplesNacional.length === 0) && (
+                      <div className="col-span-2 flex items-center justify-center text-muted-foreground">
+                        Nenhum dado disponível para visualização em pizza
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+              </div>
+            )}
           </div>
           )}
             
@@ -1168,23 +1437,78 @@ export function GraficoDashboardComparativo({
               
               {/* Detalhamento Mensal */}
               <div>
-                <h3 className="text-lg font-semibold mb-4">📅 Detalhamento Mensal</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">📅 Detalhamento Mensal</h3>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={expandirTodos}
+                      className="text-xs"
+                    >
+                      Expandir Todos
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={contrairTodos}
+                      className="text-xs"
+                    >
+                      Contrair Todos
+                    </Button>
+                  </div>
+                </div>
                 <div className="space-y-4">
-                  {dadosDetalhados.map((dado, index) => (
-                    <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow bg-card">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-md font-semibold">
-                          {dado.mes}/{dado.ano}
-                        </h4>
-                        <div className="text-right">
-                          <div className="text-xs text-muted-foreground">Receita</div>
-                          <div className="text-sm font-medium">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dado.receita)}
+                  {dadosDetalhados.map((dado, index) => {
+                    const expandido = mesesExpandidos.has(index)
+                    
+                    return (
+                      <div key={index} className="border rounded-lg bg-card overflow-hidden">
+                        {/* Cabeçalho do mês - sempre visível e clicável */}
+                        <div 
+                          className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => toggleMesExpandido(index)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                            >
+                              {expandido ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="m18 15-6-6-6 6"/>
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="m6 9 6 6 6-6"/>
+                                </svg>
+                              )}
+                            </Button>
+                            <h4 className="text-md font-semibold">
+                              {dado.mes}/{dado.ano}
+                            </h4>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <div className="text-xs text-muted-foreground">Receita</div>
+                              <div className="text-sm font-medium">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dado.receita)}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xs text-muted-foreground">Total Impostos</div>
+                              <div className="text-sm font-bold text-green-600 dark:text-green-400">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dado.totalImpostos)}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        
+                        {/* Conteúdo expansível */}
+                        {expandido && (
+                          <div className="p-4 pt-0 border-t">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
                         {dado.impostos.icms > 0 && (
                           <div className="bg-blue-500/10 dark:bg-blue-500/20 p-2 rounded border border-blue-500/30">
                             <div className="text-xs text-muted-foreground">ICMS</div>
@@ -1258,7 +1582,10 @@ export function GraficoDashboardComparativo({
                         </div>
                       </div>
                     </div>
-                  ))}
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </>

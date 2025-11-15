@@ -991,14 +991,15 @@ export class ComparativosAnaliseServiceCompleto {
     // Log detalhado dos regimes
     if (analise.comparacao?.regimes) {
       console.log('💾 [SALVAR] Detalhes dos regimes:')
-      Object.entries(analise.comparacao.regimes).forEach(([key, regime]: [string, ResultadoRegime]) => {
+      Object.entries(analise.comparacao.regimes).forEach(([key, regime]) => {
+        const reg = regime as ResultadoRegime
         console.log(`   • ${key}:`, {
-          regime: regime.regime,
-          cenarioNome: regime.cenarioNome,
-          receitaTotal: regime.receitaTotal,
-          totalImpostos: regime.totalImpostos,
-          quantidadeMeses: regime.dadosMensais?.length || 0,
-          primeiroMes: regime.dadosMensais?.[0] || null
+          regime: reg.regime,
+          cenarioNome: reg.cenarioNome,
+          receitaTotal: reg.receitaTotal,
+          totalImpostos: reg.totalImpostos,
+          quantidadeMeses: reg.dadosMensais?.length || 0,
+          primeiroMes: reg.dadosMensais?.[0] || null
         })
       })
     }

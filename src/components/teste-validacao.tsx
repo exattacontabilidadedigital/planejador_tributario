@@ -116,7 +116,7 @@ export function TesteValidacao({ onError }: TesteValidacaoProps) {
           tipo: 'mensal' as const,
           inicio: '2025-01-01',
           fim: '2025-01-31',
-          mes: 1,
+          mes: '1',
           ano: 2025
         },
         status: 'rascunho' as const

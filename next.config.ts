@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  // Enhanced error handling for development
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
+  },
+  // Prevent client-side errors from appearing in development
+  transpilePackages: [],
   // Otimizações de performance
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],

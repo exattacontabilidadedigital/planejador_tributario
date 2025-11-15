@@ -125,17 +125,35 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
     
     // Função para consolidar dados de múltiplos cenários do mesmo regime
     const consolidarDadosRegime = (nomeRegime: string) => {
+      console.log(`🔧 [CONSOLIDAR] Buscando regime: "${nomeRegime}"`)
+      console.log(`🔧 [CONSOLIDAR] Chaves disponíveis:`, Object.keys(regimes))
+      
       // Buscar por chave direta primeiro
       const dadoDireto = regimes[nomeRegime] || regimes[nomeRegime.replace('_', '')] || regimes[nomeRegime.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())]
       
+      console.log(`🔧 [CONSOLIDAR] Busca direta por "${nomeRegime}":`, {
+        encontrado: !!dadoDireto,
+        temDadosMensais: !!dadoDireto?.dadosMensais,
+        quantidadeMeses: dadoDireto?.dadosMensais?.length || 0
+      })
+      
       if (dadoDireto && dadoDireto.dadosMensais && dadoDireto.dadosMensais.length > 0) {
+        console.log(`✅ [CONSOLIDAR] Encontrou dados diretos para ${nomeRegime}`)
         return dadoDireto
       }
       
       // Se não encontrou direto, procurar por chaves que comecem com o nome do regime
       const chavesCenarios = Object.keys(regimes).filter(k => k.startsWith(nomeRegime))
       
-      if (chavesCenarios.length === 0) return null
+      console.log(`🔧 [CONSOLIDAR] Busca por prefixo "${nomeRegime}":`, {
+        chaveEncontradas: chavesCenarios,
+        quantidade: chavesCenarios.length
+      })
+      
+      if (chavesCenarios.length === 0) {
+        console.warn(`⚠️ [CONSOLIDAR] Nenhuma chave encontrada para "${nomeRegime}"`)
+        return null
+      }
       
       // Se encontrou múltiplos cenários, consolidar os dados mensais
       const todosOsDadosMensais: any[] = []
@@ -165,18 +183,44 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
         })
         
         if (dadosCenario.dadosMensais) {
+          // Adicionar campo regime a cada dado mensal para preservar a informação
+          console.log(`  🔍 [REGIME DEBUG] Antes de adicionar regime:`, {
+            dadoMensalOriginal: dadosCenario.dadosMensais[0],
+            temRegimeNoDado: !!dadosCenario.dadosMensais[0]?.regime,
+            temRegimeNoCenario: !!dadosCenario.regime,
+            nomeRegimeParam: nomeRegime,
+            cenarioCompleto: dadosCenario
+          })
+          
+          const dadosMensaisComRegime = dadosCenario.dadosMensais.map((dadoMensal: any) => {
+            const regimeEscolhido = dadoMensal.regime || dadosCenario.regime || nomeRegime
+            
+            console.log(`  🎯 [REGIME] Escolhendo regime para mês ${dadoMensal.mes}:`, {
+              dadoMensal_regime: dadoMensal.regime,
+              dadosCenario_regime: dadosCenario.regime,
+              nomeRegime_param: nomeRegime,
+              regimeEscolhido
+            })
+            
+            return {
+              ...dadoMensal,
+              regime: regimeEscolhido // Priorizar regime do dado, depois do cenário, depois o parâmetro
+            }
+          })
+          
           // Log cada dado mensal
-          dadosCenario.dadosMensais.forEach((dadoMensal: any, idx: number) => {
-            console.log(`  📅 Mês ${idx + 1}:`, {
+          dadosMensaisComRegime.forEach((dadoMensal: any, idx: number) => {
+            console.log(`  📅 Mês ${idx + 1} COM REGIME:`, {
               mes: dadoMensal.mes,
               ano: dadoMensal.ano,
+              regime: dadoMensal.regime, // ✅ Agora inclui regime
               receita: dadoMensal.receita,
               impostos: dadoMensal.impostos,
               totalImpostos: dadoMensal.totalImpostos,
               lucroLiquido: dadoMensal.lucroLiquido
             })
           })
-          todosOsDadosMensais.push(...dadosCenario.dadosMensais)
+          todosOsDadosMensais.push(...dadosMensaisComRegime)
         }
         regimeConsolidado.receitaTotal += dadosCenario.receitaTotal || 0
         regimeConsolidado.lucroLiquido += dadosCenario.lucroLiquido || 0
@@ -198,9 +242,32 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
     }
     
     // Tentar pegar os dados usando consolidação
+    console.log('🔍 [CONSOLIDAÇÃO] Iniciando busca de regimes:', {
+      regimesDisponíveis: Object.keys(regimes),
+      regimesCompleto: regimes
+    })
+    
     lucroReal = consolidarDadosRegime('lucro_real')
     lucroPresumido = consolidarDadosRegime('lucro_presumido')
     simplesNacional = consolidarDadosRegime('simples_nacional')
+    
+    console.log('🔍 [CONSOLIDAÇÃO] Resultados após consolidação:', {
+      lucroReal: lucroReal ? {
+        regime: lucroReal.regime,
+        dadosMensais: lucroReal.dadosMensais?.length,
+        primeiroMes: lucroReal.dadosMensais?.[0]
+      } : null,
+      lucroPresumido: lucroPresumido ? {
+        regime: lucroPresumido.regime,
+        dadosMensais: lucroPresumido.dadosMensais?.length,
+        primeiroMes: lucroPresumido.dadosMensais?.[0]
+      } : null,
+      simplesNacional: simplesNacional ? {
+        regime: simplesNacional.regime,
+        dadosMensais: simplesNacional.dadosMensais?.length,
+        primeiroMes: simplesNacional.dadosMensais?.[0]
+      } : null
+    })
     
     console.log('🔍 [VISUALIZAÇÃO] Dados extraídos da estrutura nova:', {
       temLucroReal: !!lucroReal,

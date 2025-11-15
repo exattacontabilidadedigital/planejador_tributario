@@ -2,14 +2,30 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { createClient } from '@/lib/supabase/client'
 import type { Empresa, EmpresaFormData } from '@/types/empresa'
+import { validarEmpresa, validarCNPJUnico } from '@/lib/validations/empresa-schema'
 
 // Cliente Supabase
 const supabase = createClient()
+
+// Função helper para tratamento de erros
+function handleError(error: unknown, operacao: string): string {
+  if (error instanceof Error) {
+    return `Erro ao ${operacao}: ${error.message}`
+  }
+  return `Erro desconhecido ao ${operacao}`
+}
 
 interface EmpresasState {
   empresas: Empresa[]
   empresaAtual: string | null // ID da empresa selecionada
   isLoading: boolean
+  operacaoEmAndamento: boolean // Previne operações concorrentes
+  loadingStates: {
+    fetching: boolean
+    creating: boolean
+    updating: boolean
+    deleting: boolean
+  }
   error: string | null
   
   // Actions
@@ -28,6 +44,13 @@ export const useEmpresasStore = create<EmpresasState>()(
       empresas: [],
       empresaAtual: null,
       isLoading: false,
+      operacaoEmAndamento: false,
+      loadingStates: {
+        fetching: false,
+        creating: false,
+        updating: false,
+        deleting: false,
+      },
       error: null,
       
       // Buscar todas as empresas do Supabase
@@ -77,59 +100,62 @@ export const useEmpresasStore = create<EmpresasState>()(
       
       // Adicionar nova empresa
       addEmpresa: async (data) => {
-        set({ isLoading: true, error: null })
+        // Verificar operação concorrente
+        const state = get()
+        if (state.operacaoEmAndamento) {
+          throw new Error('Já existe uma operação em andamento. Aguarde a conclusão.')
+        }
+
+        set({ 
+          operacaoEmAndamento: true,
+          loadingStates: { ...state.loadingStates, creating: true },
+          error: null 
+        })
         
         try {
-          console.log('🔄 Tentando inserir empresa:', data)
+          console.log('🔄 [EMPRESAS] Validando dados da empresa...')
           
-          // Primeiro, vamos verificar se a tabela existe e está acessível
-          const { data: tableCheck, error: tableError } = await supabase
-            .from('empresas')
-            .select('count', { count: 'exact' })
-            .limit(0)
+          // VALIDAÇÃO COM ZOD
+          const dadosValidados = validarEmpresa({
+            ...data,
+            empresaId: '' // Não usado na criação, mas exigido pelo schema
+          })
           
-          console.log('🔍 Verificação da tabela:', { tableCheck, tableError })
-          
-          if (tableError) {
-            console.error('❌ Erro ao acessar tabela empresas:', tableError)
-            throw new Error(`Tabela não acessível: ${tableError.message}`)
+          // VERIFICAR CNPJ DUPLICADO
+          if (dadosValidados.cnpj) {
+            console.log('🔍 [EMPRESAS] Verificando CNPJ duplicado...')
+            validarCNPJUnico(dadosValidados.cnpj, get().empresas)
           }
           
-          // Agora tentar a inserção
+          console.log('✅ [EMPRESAS] Validação concluída, inserindo no banco...')
+          
           const { data: result, error } = await supabase
             .from('empresas')
             .insert({
-              nome: data.nome,
-              cnpj: data.cnpj || null,
-              razao_social: data.razaoSocial,
-              regime_tributario: data.regimeTributario,
-              setor: data.setor,
-              uf: data.uf,
-              municipio: data.municipio,
-              inscricao_estadual: data.inscricaoEstadual || null,
-              inscricao_municipal: data.inscricaoMunicipal || null,
+              nome: dadosValidados.nome,
+              cnpj: dadosValidados.cnpj || null,
+              razao_social: dadosValidados.razaoSocial,
+              regime_tributario: dadosValidados.regimeTributario,
+              setor: dadosValidados.setor,
+              uf: dadosValidados.uf,
+              municipio: dadosValidados.municipio,
+              inscricao_estadual: dadosValidados.inscricaoEstadual || null,
+              inscricao_municipal: dadosValidados.inscricaoMunicipal || null,
             })
             .select()
             .single()
           
-          console.log('📊 Resultado da inserção:', { result, error })
-          
           if (error) {
-            console.error('❌ Erro detalhado do Supabase:', {
-              code: error.code,
-              message: error.message,
-              details: error.details,
-              hint: error.hint,
-            })
+            console.error('❌ [EMPRESAS] Erro do Supabase:', error)
             
-            // Verificar se é erro de RLS
+            // Verificar erro de RLS
             if (error.code === 'PGRST116' || error.message?.includes('RLS') || error.message?.includes('policy')) {
-              throw new Error('Erro de permissão: Row Level Security pode estar bloqueando a operação. Verifique as políticas no Supabase.')
+              throw new Error('Erro de permissão: Row Level Security pode estar bloqueando a operação.')
             }
             
-            // Verificar se é erro de constraint
+            // Verificar erro de constraint (CNPJ duplicado no DB)
             if (error.code === '23505') {
-              throw new Error('CNPJ já cadastrado. Verifique se a empresa já existe.')
+              throw new Error('CNPJ já cadastrado no banco de dados.')
             }
             
             throw error
@@ -154,17 +180,23 @@ export const useEmpresasStore = create<EmpresasState>()(
           
           set((state) => ({
             empresas: [novaEmpresa, ...state.empresas],
+            operacaoEmAndamento: false,
+            loadingStates: { ...state.loadingStates, creating: false },
             isLoading: false,
-            // Se for a primeira empresa, define como atual
             empresaAtual: state.empresas.length === 0 ? novaEmpresa.id : state.empresaAtual,
           }))
           
+          console.log('✅ [EMPRESAS] Empresa criada com sucesso:', novaEmpresa.id)
           return novaEmpresa
           
         } catch (error) {
-          console.error('Erro ao adicionar empresa:', error)
+          console.error('❌ [EMPRESAS] Erro ao adicionar empresa:', error)
+          
+          const errorMessage = handleError(error, 'adicionar empresa')
           set({ 
-            error: error instanceof Error ? error.message : 'Erro ao adicionar empresa',
+            error: errorMessage,
+            operacaoEmAndamento: false,
+            loadingStates: { ...get().loadingStates, creating: false },
             isLoading: false 
           })
           throw error
@@ -173,9 +205,32 @@ export const useEmpresasStore = create<EmpresasState>()(
       
       // Atualizar empresa existente
       updateEmpresa: async (id, data) => {
-        set({ isLoading: true, error: null })
+        // Verificar operação concorrente
+        const state = get()
+        if (state.operacaoEmAndamento) {
+          throw new Error('Já existe uma operação em andamento. Aguarde a conclusão.')
+        }
+
+        set({ 
+          operacaoEmAndamento: true,
+          loadingStates: { ...state.loadingStates, updating: true },
+          error: null 
+        })
+        
+        // Backup do estado atual para rollback
+        const empresaOriginal = get().getEmpresa(id)
+        if (!empresaOriginal) {
+          set({ 
+            operacaoEmAndamento: false,
+            loadingStates: { ...get().loadingStates, updating: false },
+            error: 'Empresa não encontrada' 
+          })
+          throw new Error('Empresa não encontrada')
+        }
         
         try {
+          console.log('🔧 [EMPRESAS] Atualizando empresa:', id)
+          
           const updateData: any = {}
           
           // Mapear campos do formato do store para o banco
@@ -218,24 +273,101 @@ export const useEmpresasStore = create<EmpresasState>()(
                   }
                 : empresa
             ),
+            operacaoEmAndamento: false,
+            loadingStates: { ...state.loadingStates, updating: false },
             isLoading: false,
           }))
           
+          console.log('✅ [EMPRESAS] Empresa atualizada com sucesso')
+          
         } catch (error) {
-          console.error('Erro ao atualizar empresa:', error)
-          set({ 
-            error: error instanceof Error ? error.message : 'Erro ao atualizar empresa',
-            isLoading: false 
-          })
+          console.error('❌ [EMPRESAS] Erro ao atualizar, fazendo rollback...', error)
+          
+          // ROLLBACK: Restaurar estado original
+          set((state) => ({
+            empresas: state.empresas.map((e) => 
+              e.id === id ? empresaOriginal : e
+            ),
+            operacaoEmAndamento: false,
+            loadingStates: { ...state.loadingStates, updating: false },
+            error: handleError(error, 'atualizar empresa'),
+            isLoading: false,
+          }))
+          
           throw error
         }
       },
       
       // Deletar empresa
       deleteEmpresa: async (id) => {
-        set({ isLoading: true, error: null })
+        // Verificar operação concorrente
+        const state = get()
+        if (state.operacaoEmAndamento) {
+          throw new Error('Já existe uma operação em andamento. Aguarde a conclusão.')
+        }
+
+        set({ 
+          operacaoEmAndamento: true,
+          loadingStates: { ...state.loadingStates, deleting: true },
+          error: null 
+        })
         
         try {
+          const empresaAtual = get().getEmpresa(id)
+          if (!empresaAtual) {
+            throw new Error('Empresa não encontrada')
+          }
+          
+          console.log('🗑️ [EMPRESAS] Verificando cenários e comparativos associados...')
+          
+          // VERIFICAR SE EMPRESA TEM CENÁRIOS
+          const { data: cenarios, error: checkCenariosError } = await supabase
+            .from('cenarios')
+            .select('id, nome')
+            .eq('empresa_id', id)
+            .limit(5)
+          
+          if (checkCenariosError) {
+            console.error('❌ [EMPRESAS] Erro ao verificar cenários:', checkCenariosError.message)
+          }
+          
+          if (cenarios && cenarios.length > 0) {
+            const nomes = cenarios.slice(0, 3).map((c: any) => c.nome).join(', ')
+            const extras = cenarios.length > 3 ? ` e mais ${cenarios.length - 3}` : ''
+            throw new Error(
+              `Não é possível deletar esta empresa pois ela possui ${cenarios.length} cenário(s) associado(s): ${nomes}${extras}. ` +
+              `Delete os cenários primeiro.`
+            )
+          }
+          
+          // VERIFICAR SE EMPRESA TEM COMPARATIVOS
+          const { data: comparativos, error: checkComparativosError } = await supabase
+            .from('comparativos')
+            .select('id, nome')
+            .eq('empresa_id', id)
+            .limit(5)
+          
+          if (checkComparativosError) {
+            console.error('❌ [EMPRESAS] Erro ao verificar comparativos:', checkComparativosError.message)
+          }
+          
+          if (comparativos && comparativos.length > 0) {
+            const nomes = comparativos.slice(0, 3).map((c: any) => c.nome).join(', ')
+            const extras = comparativos.length > 3 ? ` e mais ${comparativos.length - 3}` : ''
+            throw new Error(
+              `Não é possível deletar esta empresa pois ela possui ${comparativos.length} comparativo(s) associado(s): ${nomes}${extras}. ` +
+              `Delete os comparativos primeiro.`
+            )
+          }
+          
+          console.log('✅ [EMPRESAS] Empresa não possui dependências, prosseguindo com deleção...')
+          
+          // Backup do estado atual
+          const stateBackup = {
+            empresas: get().empresas,
+            empresaAtual: get().empresaAtual
+          }
+          
           const { error } = await supabase
             .from('empresas')
             .delete()
@@ -246,16 +378,24 @@ export const useEmpresasStore = create<EmpresasState>()(
           set((state) => ({
             empresas: state.empresas.filter((empresa) => empresa.id !== id),
             empresaAtual: state.empresaAtual === id ? null : state.empresaAtual,
+            operacaoEmAndamento: false,
+            loadingStates: { ...state.loadingStates, deleting: false },
             isLoading: false,
           }))
           
+          console.log('✅ [EMPRESAS] Empresa deletada com sucesso')
+          
         } catch (error) {
-          console.error('Erro ao deletar empresa:', error)
+          console.error('❌ [EMPRESAS] Erro ao deletar empresa:', error)
+          
+          const errorMessage = handleError(error, 'deletar empresa')
           set({ 
-            error: error instanceof Error ? error.message : 'Erro ao deletar empresa',
+            error: errorMessage,
+            operacaoEmAndamento: false,
+            loadingStates: { ...get().loadingStates, deleting: false },
             isLoading: false 
           })
-          throw error
+          throw new Error(errorMessage)
         }
       },
       

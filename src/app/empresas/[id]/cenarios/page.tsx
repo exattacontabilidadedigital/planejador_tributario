@@ -38,6 +38,19 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import type { StatusCenario } from "@/types/cenario"
 
+// Meses do ano
+const MESES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+]
+
+// Helper para formatar mês (string "01"-"12" para nome)
+const formatarMes = (mes?: string): string => {
+  if (!mes) return ''
+  const mesNum = parseInt(mes, 10)
+  return MESES[mesNum - 1] || mes
+}
+
 export default function CenariosPage({
   params,
 }: {
@@ -79,12 +92,14 @@ export default function CenariosPage({
         // Carregar cenários
         await fetchCenarios(id)
         const cenariosData = getCenariosByEmpresa(id)
-        setTodosCenarios(cenariosData)
         
         console.log('✅ [CENÁRIOS] Dados carregados:', {
           empresa: empresaData?.nome,
-          cenarios: cenariosData.length
+          cenariosRecebidos: cenariosData.length,
+          primeiroCenario: cenariosData[0]
         })
+        
+        setTodosCenarios(cenariosData)
         
       } catch (error) {
         console.error('❌ [CENÁRIOS] Erro ao carregar:', error)
@@ -129,9 +144,14 @@ export default function CenariosPage({
 
   // Filtros
   const cenariosFiltrados = todosCenarios.filter((cenario) => {
-    const matchBusca = cenario.nome.toLowerCase().includes(busca.toLowerCase()) ||
+    if (!cenario || !cenario.periodo) {
+      console.warn('⚠️ Cenário inválido:', cenario)
+      return false
+    }
+    
+    const matchBusca = cenario.nome?.toLowerCase().includes(busca.toLowerCase()) ||
                        cenario.descricao?.toLowerCase().includes(busca.toLowerCase())
-    const matchAno = filtroAno === "todos" || cenario.periodo.ano.toString() === filtroAno
+    const matchAno = filtroAno === "todos" || cenario.periodo.ano?.toString() === filtroAno
     const matchStatus = filtroStatus === "todos" || cenario.status === filtroStatus
     
     return matchBusca && matchAno && matchStatus
@@ -323,8 +343,9 @@ export default function CenariosPage({
             <div className="grid grid-cols-12 gap-2">
               {[...Array(12)].map((_, index) => {
                 const mes = index + 1
+                const mesString = mes.toString().padStart(2, '0') // Converter para string "01"-"12"
                 const cenarioDoMes = cenariosFiltrados.find(
-                  c => c.periodo.mes === mes && c.periodo.tipo === 'mensal'
+                  c => c.periodo.mes === mesString && c.periodo.tipo === 'mensal'
                 )
                 
                 return (
@@ -396,7 +417,7 @@ export default function CenariosPage({
                       <span className="flex items-center gap-4 text-xs">
                         <span>Período: {cenario.periodo.tipo}</span>
                         <span>Ano: {cenario.periodo.ano}</span>
-                        {cenario.periodo.mes && <span>Mês: {cenario.periodo.mes}</span>}
+                        {cenario.periodo.mes && <span>Mês: {formatarMes(cenario.periodo.mes)}</span>}
                         <span>Atualizado: {format(new Date(cenario.atualizadoEm), 'dd/MM/yyyy')}</span>
                       </span>
                     </CardDescription>

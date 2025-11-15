@@ -3,6 +3,7 @@
 import { use, useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useEmpresasStore } from "@/stores/empresas-store"
+import { useRegimesTributariosStore } from "@/stores/regimes-tributarios-store"
 import { useRelatorios } from "@/hooks/use-relatorios"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -46,6 +47,7 @@ export default function RelatoriosPage({
   const { id: empresaId } = use(params)
   const router = useRouter()
   const { getEmpresa } = useEmpresasStore()
+  const { carregarDadosEmpresa } = useRegimesTributariosStore()
   const empresa = getEmpresa(empresaId)
 
   // Inicializar com ano fixo para evitar problemas de hidratação
@@ -59,6 +61,16 @@ export default function RelatoriosPage({
   const [dropdownAberto, setDropdownAberto] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const relatoriosRef = useRef<HTMLDivElement>(null)
+  
+  // Carregar dados comparativos da empresa
+  useEffect(() => {
+    if (empresaId) {
+      console.log('📥 [RelatoriosPage] Carregando dados comparativos para empresa:', empresaId)
+      carregarDadosEmpresa(empresaId).catch(error => {
+        console.error('❌ [RelatoriosPage] Erro ao carregar dados:', error)
+      })
+    }
+  }, [empresaId, carregarDadosEmpresa])
   
   // Marcar componente como montado e atualizar ano
   useEffect(() => {

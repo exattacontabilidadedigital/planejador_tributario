@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Cenario, CenarioFormData, TipoPeriodo, StatusCenario } from '@/types/cenario'
 import type { TaxConfig } from '@/types'
 import { validateCenarioData, validateCenarioCreate } from '@/lib/validations/cenario'
+import { cenarioCreateSchema, type CenarioCreateInput } from '@/lib/validations/cenario-schema'
 import { log } from '@/lib/logger'
 import { sanitizeCenarioInput, rateLimit } from '@/lib/security'
 import { dataTransformers } from '@/lib/data-transformers'
@@ -65,6 +66,9 @@ interface CenariosState {
     approving: boolean
   }
   
+  // Operação em andamento para evitar duplicação
+  operacaoEmAndamento: string | null
+  
   // Actions
   fetchCenarios: (empresaId?: string) => Promise<void>
   addCenario: (empresaId: string, data: CenarioFormData, config: TaxConfig) => Promise<Cenario>
@@ -105,8 +109,18 @@ export const useCenariosStore = create<CenariosState>()(
         duplicating: false,
         approving: false,
       },
+      
+      // Operação em andamento
+      operacaoEmAndamento: null,
       // Buscar cenários do Supabase
       fetchCenarios: async (empresaId) => {
+        // Garantir que cenarios é um array antes de qualquer operação
+        const state = get()
+        if (!Array.isArray(state.cenarios)) {
+          console.warn('⚠️ [CENÁRIOS STORE] Estado corrompido detectado em fetchCenarios, resetando')
+          set({ cenarios: [], cenariosPorEmpresa: {} })
+        }
+        
         console.log('🔍 [CENÁRIOS STORE] fetchCenarios iniciado para empresa:', empresaId)
         console.log('🔍 [CENÁRIOS STORE] Estado atual antes do fetch:', {
           cenarios: get().cenarios.length,
@@ -199,7 +213,8 @@ export const useCenariosStore = create<CenariosState>()(
                 inicio: inicioData,
                 fim: fimData,
                 ano: row.ano || 2025,
-                mes: periodo.mes || row.mes || undefined,
+                // Converter mes para string se for number (workaround até migration do banco)
+                mes: row.mes ? (typeof row.mes === 'number' ? row.mes.toString().padStart(2, '0') : row.mes) : periodo.mes,
                 trimestre: periodo.trimestre as (1 | 2 | 3 | 4) || row.trimestre as (1 | 2 | 3 | 4) || undefined,
               },
               // CORRIGIDO: usar 'configuracao' em vez de 'config'
@@ -210,7 +225,8 @@ export const useCenariosStore = create<CenariosState>()(
               tipo_periodo: row.tipo_periodo as TipoPeriodo,
               data_inicio: row.data_inicio,
               data_fim: row.data_fim,
-              mes: row.mes,
+              // Converter mes para string se for number
+              mes: row.mes ? (typeof row.mes === 'number' ? row.mes.toString().padStart(2, '0') : row.mes) : undefined,
               trimestre: row.trimestre as (1 | 2 | 3 | 4),
               criado_por: row.criado_por,
               tags: row.tags || [],
@@ -270,16 +286,60 @@ export const useCenariosStore = create<CenariosState>()(
       
       // Adicionar novo cenário
       addCenario: async (empresaId, data, config) => {
-        set({ isLoading: true, error: null })
+        // 🚫 Prevenir operações concorrentes
+        const estado = get()
+        if (estado.loadingStates.creating || estado.operacaoEmAndamento === 'create') {
+          console.warn('⚠️ [CENÁRIOS] Operação de criação já em andamento')
+          throw new Error('Aguarde a operação anterior finalizar')
+        }
+
+        // 🔄 Backup do estado para rollback
+        const estadoAnterior = { ...estado.cenarios }
+        
+        set((state) => ({ 
+          isLoading: true, 
+          error: null,
+          loadingStates: { ...state.loadingStates, creating: true },
+          operacaoEmAndamento: 'create'
+        }))
         
         try {
           console.log('🔧 [CENÁRIOS] Adicionando cenário:', { empresaId, data, config })
           
-          // VALIDAÇÃO ROBUSTA COM ZOD
+          // 1️⃣ VALIDAÇÃO COM ZOD
           const currentYear = new Date().getFullYear()
           const ano = data.periodo?.ano || currentYear
           const status = data.status || 'rascunho'
           
+          const dadosParaValidar = {
+            empresaId,
+            nome: data.nome,
+            mes: data.periodo?.mes || '01',
+            ano: ano,
+            configuracao: config,
+            status: status,
+          }
+          
+          // Validar com Zod
+          const resultadoValidacao = cenarioCreateSchema.safeParse(dadosParaValidar)
+          if (!resultadoValidacao.success) {
+            const erros = resultadoValidacao.error.issues.map(i => i.message).join(', ')
+            throw new Error(`Dados inválidos: ${erros}`)
+          }
+          
+          // 2️⃣ VERIFICAR DUPLICATAS
+          const duplicata = estado.cenarios.find(c => 
+            c.empresaId === empresaId &&
+            c.nome.toLowerCase() === data.nome.toLowerCase().trim() &&
+            c.periodo.ano === ano &&
+            (c.periodo.mes === data.periodo?.mes || (!c.periodo.mes && !data.periodo?.mes))
+          )
+          
+          if (duplicata) {
+            throw new Error(`Já existe um cenário "${data.nome}" para ${data.periodo?.mes ? `${data.periodo.mes}/` : ''}${ano}`)
+          }
+          
+          // Validação antiga (manter compatibilidade)
           const cenarioParaValidar = {
             empresaId,
             nome: data.nome,
@@ -406,57 +466,71 @@ export const useCenariosStore = create<CenariosState>()(
               [empresaId]: [novoCenario, ...(state.cenariosPorEmpresa[empresaId] || [])],
             },
             isLoading: false,
+            loadingStates: { ...state.loadingStates, creating: false },
+            operacaoEmAndamento: null,
           }))
+          
+          log.info('Cenário criado com sucesso', {
+            component: 'CenariosStore',
+            action: 'addCenario',
+            metadata: { cenarioId: novoCenario.id, empresaId }
+          })
           
           return novoCenario
           
         } catch (error) {
-          const errorMessage = handleError(error, 'adicionar cenário')
+          // 🔄 ROLLBACK: Reverter estado local
           set({ 
-            error: errorMessage,
-            isLoading: false 
+            cenarios: estadoAnterior,
+            isLoading: false,
+            loadingStates: { ...get().loadingStates, creating: false },
+            operacaoEmAndamento: null,
           })
+          
+          const errorMessage = handleError(error, 'adicionar cenário')
+          
+          log.error('Erro ao criar cenário', {
+            component: 'CenariosStore',
+            action: 'addCenario',
+            metadata: { empresaId, erro: errorMessage }
+          }, error instanceof Error ? error : new Error(String(error)))
+          
+          set({ error: errorMessage })
           throw new Error(errorMessage)
         }
       },
       
       // Atualizar cenário existente
       updateCenario: async (id, data) => {
-        set({ isLoading: true, error: null })
+        // Verificar operação concorrente
+        const state = get()
+        if (state.operacaoEmAndamento) {
+          throw new Error('Já existe uma operação em andamento. Aguarde a conclusão.')
+        }
+
+        set({ 
+          operacaoEmAndamento: true,
+          loadingStates: { ...state.loadingStates, updating: true },
+          error: null 
+        })
+        
+        // Backup do estado atual para rollback
+        const cenarioOriginal = get().getCenario(id)
+        if (!cenarioOriginal) {
+          set({ 
+            operacaoEmAndamento: false,
+            loadingStates: { ...get().loadingStates, updating: false },
+            error: 'Cenário não encontrado' 
+          })
+          throw new Error('Cenário não encontrado')
+        }
         
         try {
           console.log('🔧 [CENÁRIOS] Atualizando cenário:', id)
           
-          // VALIDAÇÃO ROBUSTA
+          // VALIDAÇÃO COM ZOD (parcial)
           if (!id) {
             throw new Error('ID do cenário é obrigatório')
-          }
-          
-          if (data.nome !== undefined) {
-            if (!data.nome?.trim()) {
-              throw new Error('Nome do cenário é obrigatório')
-            }
-            if (data.nome.trim().length > 255) {
-              throw new Error('Nome do cenário não pode ter mais de 255 caracteres')
-            }
-          }
-          
-          if (data.descricao !== undefined && data.descricao && data.descricao.length > 1000) {
-            throw new Error('Descrição não pode ter mais de 1000 caracteres')
-          }
-          
-          if (data.periodo?.ano !== undefined) {
-            const currentYear = new Date().getFullYear()
-            if (data.periodo.ano < 2020 || data.periodo.ano > currentYear + 10) {
-              throw new Error(`Ano deve estar entre 2020 e ${currentYear + 10}`)
-            }
-          }
-          
-          if (data.status !== undefined) {
-            const validStatuses = ['rascunho', 'aprovado', 'arquivado'] as const
-            if (!validStatuses.includes(data.status as any)) {
-              throw new Error('Status inválido')
-            }
           }
           
           const updateData: any = {}
@@ -585,28 +659,92 @@ export const useCenariosStore = create<CenariosState>()(
               ...state,
               cenarios: updatedCenarios,
               cenariosPorEmpresa,
+              operacaoEmAndamento: false,
+              loadingStates: { ...state.loadingStates, updating: false },
               isLoading: false,
             }
           })
           
         } catch (error) {
-          const errorMessage = handleError(error, 'atualizar cenário')
-          set({ 
-            error: errorMessage,
-            isLoading: false 
-          })
-          throw new Error(errorMessage)
+          console.error('❌ [CENÁRIOS] Erro ao atualizar, fazendo rollback...', error)
+          
+          // ROLLBACK: Restaurar estado original
+          set((state) => ({
+            cenarios: state.cenarios.map((c) => 
+              c.id === id ? cenarioOriginal : c
+            ),
+            cenariosPorEmpresa: {
+              ...state.cenariosPorEmpresa,
+              [cenarioOriginal.empresaId]: state.cenariosPorEmpresa[cenarioOriginal.empresaId]?.map((c) =>
+                c.id === id ? cenarioOriginal : c
+              ) || []
+            },
+            operacaoEmAndamento: false,
+            loadingStates: { ...state.loadingStates, updating: false },
+            error: handleError(error, 'atualizar cenário'),
+          }))
+          
+          throw error
         }
       },
       
       // Deletar cenário
       deleteCenario: async (id) => {
-        set({ isLoading: true, error: null })
+        // Verificar operação concorrente
+        const state = get()
+        if (state.operacaoEmAndamento) {
+          throw new Error('Já existe uma operação em andamento. Aguarde a conclusão.')
+        }
+
+        set({ 
+          operacaoEmAndamento: true,
+          loadingStates: { ...state.loadingStates, deleting: true },
+          error: null 
+        })
         
         try {
-          // Buscar empresaId antes de deletar
+          // Buscar cenário antes de deletar (para backup e validação)
           const cenarioAtual = get().getCenario(id)
-          const empresaId = cenarioAtual?.empresaId
+          if (!cenarioAtual) {
+            throw new Error('Cenário não encontrado')
+          }
+          const empresaId = cenarioAtual.empresaId
+          
+          console.log('🗑️ [CENÁRIOS] Verificando uso do cenário em comparativos...')
+          
+          // VERIFICAR SE CENÁRIO ESTÁ SENDO USADO EM COMPARATIVOS
+          try {
+            const { data: comparativos, error: checkError } = await supabase
+              .from('comparativos')
+              .select('id, nome')
+              .contains('cenarios_ids', [id])
+            
+            if (checkError) {
+              // Se a tabela não existe, apenas logamos e continuamos
+              if (checkError.message.includes('could not find') || checkError.message.includes('does not exist')) {
+                console.warn('⚠️ [CENÁRIOS] Tabela comparativos não encontrada, pulando verificação')
+              } else {
+                console.error('❌ [CENÁRIOS] Erro ao verificar uso:', checkError.message)
+              }
+            } else if (comparativos && comparativos.length > 0) {
+              const nomes = comparativos.map((c: any) => c.nome).join(', ')
+              throw new Error(
+                `Não é possível deletar este cenário pois ele está sendo usado nos seguintes comparativos: ${nomes}. ` +
+                `Remova o cenário destes comparativos antes de deletá-lo.`
+              )
+            }
+          } catch (error: any) {
+            // Se der erro na verificação (tabela não existe, etc), apenas logamos e continuamos
+            console.warn('⚠️ [CENÁRIOS] Não foi possível verificar uso em comparativos:', error.message)
+          }
+          
+          console.log('✅ [CENÁRIOS] Prosseguindo com deleção...')
+          
+          // Backup do estado atual para rollback
+          const stateBackup = {
+            cenarios: get().cenarios,
+            cenariosPorEmpresa: get().cenariosPorEmpresa
+          }
           
           const { error } = await supabase
             .from('cenarios')
@@ -630,14 +768,22 @@ export const useCenariosStore = create<CenariosState>()(
               ...state,
               cenarios: newCenarios,
               cenariosPorEmpresa,
+              operacaoEmAndamento: false,
+              loadingStates: { ...state.loadingStates, deleting: false },
               isLoading: false,
             }
           })
           
+          console.log('✅ [CENÁRIOS] Cenário deletado com sucesso')
+          
         } catch (error) {
+          console.error('❌ [CENÁRIOS] Erro ao deletar cenário:', error)
+          
           const errorMessage = handleError(error, 'deletar cenário')
           set({ 
             error: errorMessage,
+            operacaoEmAndamento: false,
+            loadingStates: { ...get().loadingStates, deleting: false },
             isLoading: false 
           })
           throw new Error(errorMessage)
@@ -652,16 +798,31 @@ export const useCenariosStore = create<CenariosState>()(
       // Buscar cenários por empresa (local/cache)
       getCenariosByEmpresa: (empresaId) => {
         const state = get()
+        
+        // Garantir que state.cenarios é um array
+        const cenarios = Array.isArray(state.cenarios) ? state.cenarios : []
+        
         return state.cenariosPorEmpresa[empresaId] || 
-               state.cenarios.filter((cenario) => cenario.empresaId === empresaId)
+               cenarios.filter((cenario) => cenario.empresaId === empresaId)
       },
       
       // Duplicar cenário
       duplicarCenario: async (id, novoNome) => {
-        const cenarioOriginal = get().getCenario(id)
-        if (!cenarioOriginal) return undefined
+        const state = get()
+        const cenarioOriginal = state.getCenario(id)
+        if (!cenarioOriginal) {
+          throw new Error('Cenário original não encontrado')
+        }
+        
+        // Ativar loading state específico
+        set({ 
+          loadingStates: { ...state.loadingStates, duplicating: true },
+          error: null 
+        })
         
         try {
+          console.log('📋 [CENÁRIOS] Duplicando cenário:', id)
+          
           const cenarioData: CenarioFormData = {
             nome: novoNome || `${cenarioOriginal.nome} (Cópia)`,
             descricao: cenarioOriginal.descricao,
@@ -669,15 +830,27 @@ export const useCenariosStore = create<CenariosState>()(
             status: 'rascunho',
           }
           
-          return await get().addCenario(
+          const resultado = await get().addCenario(
             cenarioOriginal.empresaId,
             cenarioData,
             { ...cenarioOriginal.configuracao }
           )
+          
+          // Desativar loading state após sucesso
+          set({ 
+            loadingStates: { ...get().loadingStates, duplicating: false }
+          })
+          
+          console.log('✅ [CENÁRIOS] Cenário duplicado com sucesso')
+          return resultado
+          
         } catch (error) {
+          console.error('❌ [CENÁRIOS] Erro ao duplicar cenário:', error)
+          
           const errorMessage = handleError(error, 'duplicar cenário')
           set({ 
             error: errorMessage,
+            loadingStates: { ...get().loadingStates, duplicating: false },
             isLoading: false 
           })
           throw new Error(errorMessage)
@@ -686,19 +859,70 @@ export const useCenariosStore = create<CenariosState>()(
       
       // Aprovar cenário
       aprovarCenario: async (id) => {
+        const state = get()
+        const cenario = state.getCenario(id)
+        
+        // Validar transição de estado
+        if (!cenario) {
+          throw new Error('Cenário não encontrado')
+        }
+        
+        if (cenario.status === 'aprovado') {
+          console.warn('⚠️ [CENÁRIOS] Cenário já está aprovado:', id)
+          return // Não fazer nada se já está aprovado
+        }
+        
+        if (cenario.status === 'arquivado') {
+          throw new Error('Não é possível aprovar um cenário arquivado. Desarquive-o primeiro.')
+        }
+        
+        // Ativar loading state específico
+        set({ 
+          loadingStates: { ...state.loadingStates, approving: true },
+          error: null
+        })
+        
         console.log('✅ [CENÁRIOS] Aprovando cenário:', id)
         try {
           await get().updateCenario(id, { status: 'aprovado' })
+          
+          // Desativar loading state após sucesso
+          set({ 
+            loadingStates: { ...get().loadingStates, approving: false }
+          })
+          
           console.log('✅ [CENÁRIOS] Cenário aprovado com sucesso:', id)
         } catch (error) {
           console.error('❌ [CENÁRIOS] Erro ao aprovar cenário:', error)
+          set({ 
+            loadingStates: { ...get().loadingStates, approving: false }
+          })
           throw error
         }
       },
       
       // Arquivar cenário
       arquivarCenario: async (id) => {
-        await get().updateCenario(id, { status: 'arquivado' })
+        const cenario = get().getCenario(id)
+        
+        // Validar transição de estado
+        if (!cenario) {
+          throw new Error('Cenário não encontrado')
+        }
+        
+        if (cenario.status === 'arquivado') {
+          console.warn('⚠️ [CENÁRIOS] Cenário já está arquivado:', id)
+          return // Não fazer nada se já está arquivado
+        }
+        
+        console.log('📦 [CENÁRIOS] Arquivando cenário:', id)
+        try {
+          await get().updateCenario(id, { status: 'arquivado' })
+          console.log('✅ [CENÁRIOS] Cenário arquivado com sucesso:', id)
+        } catch (error) {
+          console.error('❌ [CENÁRIOS] Erro ao arquivar cenário:', error)
+          throw error
+        }
       },
       
       // Limpar erro
@@ -712,6 +936,13 @@ export const useCenariosStore = create<CenariosState>()(
       partialize: (state) => ({
         cenarios: state.cenarios,
       }),
+      // Validar estado ao hidratar do localStorage
+      onRehydrateStorage: () => (state) => {
+        if (state && !Array.isArray(state.cenarios)) {
+          console.warn('⚠️ [CENÁRIOS STORE] Estado corrompido detectado, resetando cenarios para array vazio')
+          state.cenarios = []
+        }
+      },
     }
   )
 )

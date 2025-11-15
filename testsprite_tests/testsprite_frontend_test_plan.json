@@ -1,0 +1,393 @@
+[
+  {
+    "id": "TC001",
+    "title": "Validate accurate tax calculations for ICMS",
+    "description": "Verify that the ICMS tax calculation is accurate for standard rates, regimes especiais, and substituição tributária cases.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Configure a scenario with standard ICMS alíquotas and input revenue and CMV values"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the ICMS calculation matches expected results per Brazilian tax rules"
+      },
+      {
+        "type": "action",
+        "description": "Modify the scenario to use regime especial and verify calculations update accordingly"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm ICMS substituição tributária is correctly applied and reflected"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Validate automatic PIS/COFINS calculation with multiple regimes",
+    "description": "Ensure PIS/COFINS tax calculation is correct for different tax regimes and inputs including edge values like zero and high revenues.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Input multiple scenarios with varying PIS/COFINS alíquotas and revenue values"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify PIS/COFINS results are precise and consistent with manual calculations"
+      },
+      {
+        "type": "action",
+        "description": "Input zero and extremely high revenue values and retest calculations"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm system handles edge cases without errors and calculates correctly"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Validate IRPJ/CSLL automatic calculation accuracy",
+    "description": "Test calculation accuracy of IRPJ and CSLL taxes including different alíquota configurations and taxable bases.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create scenarios with base revenue, profit, and different CSLL and IRPJ rates"
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure the IRPJ and CSLL are calculated accurately per Brazilian legislation"
+      },
+      {
+        "type": "action",
+        "description": "Test with negative or zero taxable base values"
+      },
+      {
+        "type": "assertion",
+        "description": "Validate negative or zero taxable bases result in zero tax, without exceptions"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Import CSV file with operational expenses including expenses with and without credit",
+    "description": "Verify that CSV import correctly parses and adds operational expenses into calculation memories with correct credit classification.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Import a valid CSV file containing operational expenses categorized with and without fiscal credit"
+      },
+      {
+        "type": "assertion",
+        "description": "Validate that all expenses are imported accurately and reflected in corresponding memorias de cálculo"
+      },
+      {
+        "type": "action",
+        "description": "Import a malformed CSV file"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm system shows error feedback and does not corrupt existing data"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Test dynamic DRE generation with multiple scenarios",
+    "description": "Validate dynamic demo of results (DRE) correctly displays financial indicators, margins, and tax impacts for selected scenarios.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create and save multiple tax scenarios with different parameters"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to DRE view and select each scenario"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify dynamic DRE updates with correct indicators, margins, and tax values matching scenario inputs"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Manage scenarios: create, rename, save, compare, and delete",
+    "description": "Verify full CRUD operations on tax planning scenarios including comparison functionality are working without errors.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create a new scenario with valid inputs and save it"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm scenario is saved and appears in the scenario list"
+      },
+      {
+        "type": "action",
+        "description": "Rename the scenario with a valid new name"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the scenario name updates properly in the UI"
+      },
+      {
+        "type": "action",
+        "description": "Create multiple scenarios and perform comparison"
+      },
+      {
+        "type": "assertion",
+        "description": "Validate that the comparison displays accurate side-by-side analysis and graphs"
+      },
+      {
+        "type": "action",
+        "description": "Delete a scenario"
+      },
+      {
+        "type": "assertion",
+        "description": "Validate scenario is removed without residual data"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Validate PDF report export contains full data and correct formatting",
+    "description": "Test PDF export generates professional reports with all configuration data, graphs, memórias de cálculo, and summary executive included.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Generate a report for a detailed scenario including graphs and memórias de cálculo"
+      },
+      {
+        "type": "action",
+        "description": "Export the report to PDF format"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify PDF file contains all sections, data matches scenario inputs, graphics render correctly, and layout is professional"
+      },
+      {
+        "type": "action",
+        "description": "Attempt PDF export with minimal or empty data"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm export does not fail and handles edge cases gracefully"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Validate data persistence in local storage between sessions",
+    "description": "Ensure that all user data including scenarios, inputs, and settings persist locally across browser reloads and closures.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create scenarios, input values, and change app settings such as theme"
+      },
+      {
+        "type": "action",
+        "description": "Close browser or reload the page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify all user data including scenarios and configuration are restored accurately"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Validate UI theme switch between dark and light modes",
+    "description": "Verify the toggle in the header changes the entire app theme between dark and light modes with consistent style and no UI glitches.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Toggle the theme switch in header from light to dark"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm theme changes to dark mode visually with correct contrasts"
+      },
+      {
+        "type": "action",
+        "description": "Toggle back to light theme"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm theme changes back with no residual styling issues"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Validate input fields with financial and percentage formats including validation feedback",
+    "description": "Check that all currency and percentage inputs accept valid formats, show errors on invalid data, and highlight required fields correctly.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Enter valid currency and percentage values in input fields and submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Inputs accept values without error and allow progression"
+      },
+      {
+        "type": "action",
+        "description": "Enter invalid inputs such as letters in numeric fields or improper formatting"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify instant validation feedback with clear visual indications and error messages"
+      },
+      {
+        "type": "action",
+        "description": "Leave required financial fields empty and attempt to save"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm form highlights required fields and prevents submission"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Validate performance responsiveness with large data sets",
+    "description": "Test app responsiveness and performance optimizations like memoization, debounce, and lazy loading when handling large inputs and many scenarios.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create multiple large scenarios with extensive operational expenses and simulate data-heavy situations"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify UI remains responsive, calculations complete within acceptable times, and app does not freeze"
+      },
+      {
+        "type": "action",
+        "description": "Rapidly change inputs and toggle between views"
+      },
+      {
+        "type": "assertion",
+        "description": "Check no lag or delayed update occurs, confirming debounce and memoization function properly"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Verify error handling during data import and invalid file formats",
+    "description": "Ensure the system properly detects and handles errors during CSV import including unsupported file types and corrupted content with clear feedback.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Attempt to import unsupported file formats such as .xls or .txt"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm system rejects file with user-friendly error message"
+      },
+      {
+        "type": "action",
+        "description": "Import a CSV with corrupted or malformed data rows"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify system reports detailed error and does not crash or corrupt existing data"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Validate graphical displays update according to scenario data",
+    "description": "Check all graphs and charts including carga tributária, comparacao impostos, lucros, composicao impostos, and evolution view update correctly with changes in scenario data.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create or modify scenario with varied tax and expense inputs"
+      },
+      {
+        "type": "action",
+        "description": "Navigate through all comparative and reporting graphs"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm all visual data representations reflect current scenario data accurately and update dynamically"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Validate memoization and use of hooks for tax calculations and DRE",
+    "description": "Ensure computational hooks return correct values, optimize performance, and update automatically when inputs change.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Input initial financial values and observe hook outputs"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify hook returns correct tax calculation and DRE results"
+      },
+      {
+        "type": "action",
+        "description": "Change input values and validate hooks recalculate accurately and efficiently"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm recalculations happen without redundant processing indicating memoization"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Validate local data state synchronization with Supabase for persistence and sharing",
+    "description": "Check integration synchronizes local data and Supabase backend without data loss or conflicts.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Save scenario and related data locally and trigger synchronization with Supabase"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify data is stored accurately in Supabase and reflected back in local state"
+      },
+      {
+        "type": "action",
+        "description": "Update data remotely and refresh local app"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm local state updates with changes from Supabase"
+      }
+    ]
+  }
+]

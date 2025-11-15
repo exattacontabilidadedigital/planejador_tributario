@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useEffect } from "react"
+import { useMemo, useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -12,9 +12,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Input } from "@/components/ui/input"
 import { useRegimesTributariosStore } from "@/stores/regimes-tributarios-store"
 import { MESES_ANO, REGIMES_TRIBUTARIOS } from "@/types/comparativo"
-import { Trash2, Copy, Edit, Calendar, TrendingUp } from "lucide-react"
+import { Trash2, Copy, Edit, Calendar, TrendingUp, ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface ListagemDadosComparativosProps {
@@ -26,82 +37,81 @@ interface ListagemDadosComparativosProps {
 
 export function ListagemDadosComparativos({ empresaId, ano, onEditarDado, onDuplicarDado }: ListagemDadosComparativosProps) {
   const { toast } = useToast()
-  const { obterDadosPorEmpresa, removerDadoComparativo, limparDadosCorrempidos, adicionarDadoComparativo } = useRegimesTributariosStore()
+  const { obterDadosPorEmpresa, removerDadoComparativo } = useRegimesTributariosStore()
+  
+  // Estados locais
+  const [paginaAtual, setPaginaAtual] = useState(1)
+  const [termoBusca, setTermoBusca] = useState('')
+  const [idParaRemover, setIdParaRemover] = useState<string | null>(null)
+  const [dadoParaRemover, setDadoParaRemover] = useState<{ mes: string; regime: string } | null>(null)
+  
+  const REGISTROS_POR_PAGINA = 15
 
-  // Limpar dados corrompidos na inicialização
+  // Buscar e filtrar dados (validação movida para o backend)
+  const dadosFiltrados = useMemo(() => {
+    const dados = obterDadosPorEmpresa(empresaId)
+      .filter(dado => dado.ano === ano)
+    
+    if (!termoBusca) return dados
+    
+    const busca = termoBusca.toLowerCase()
+    return dados.filter(dado => {
+      const nomeMes = MESES_ANO.find(m => m.value === dado.mes)?.label?.toLowerCase() || ''
+      const nomeRegime = REGIMES_TRIBUTARIOS.find(r => r.value === dado.regime)?.label?.toLowerCase() || ''
+      
+      return nomeMes.includes(busca) || nomeRegime.includes(busca)
+    })
+  }, [empresaId, ano, obterDadosPorEmpresa, termoBusca])
+  
+  // Ordenar dados
+  const dadosOrdenados = useMemo(() => {
+    return [...dadosFiltrados].sort((a, b) => {
+      const ordenMesA = MESES_ANO.findIndex(m => m.value === a.mes)
+      const ordenMesB = MESES_ANO.findIndex(m => m.value === b.mes)
+      
+      if (ordenMesA !== ordenMesB) return ordenMesA - ordenMesB
+      return a.regime.localeCompare(b.regime)
+    })
+  }, [dadosFiltrados])
+  
+  // Paginação
+  const totalPaginas = Math.ceil(dadosOrdenados.length / REGISTROS_POR_PAGINA)
+  const indiceInicio = (paginaAtual - 1) * REGISTROS_POR_PAGINA
+  const indiceFim = indiceInicio + REGISTROS_POR_PAGINA
+  const dadosPaginados = dadosOrdenados.slice(indiceInicio, indiceFim)
+  
+  // Reset página ao mudar busca
   useEffect(() => {
-    try {
-      limparDadosCorrempidos()
-    } catch (error) {
-      console.error('Erro ao limpar dados corrompidos:', error)
-    }
-  }, [limparDadosCorrempidos])
-
-  const dadosEmpresa = useMemo(() => {
-    try {
-      return obterDadosPorEmpresa(empresaId)
-        .filter(dado => {
-          // Validar se o dado tem as propriedades necessárias
-          if (!dado || typeof dado !== 'object') return false
-          if (!dado.ano || dado.ano !== ano) return false
-          if (!dado.criadoEm) return false
-          
-          // Validar se a data é válida
-          try {
-            const date = dado.criadoEm instanceof Date ? dado.criadoEm : new Date(dado.criadoEm)
-            if (isNaN(date.getTime())) return false
-          } catch {
-            return false
-          }
-          
-          return true
-        })
-        .sort((a, b) => {
-          // Ordenar por mês (Janeiro = 1, Dezembro = 12)
-          const ordenMesA = MESES_ANO.findIndex(m => m.value === a.mes) + 1
-          const ordenMesB = MESES_ANO.findIndex(m => m.value === b.mes) + 1
-          
-          if (ordenMesA !== ordenMesB) {
-            return ordenMesA - ordenMesB
-          }
-          
-          // Se mesmo mês, ordenar por regime
-          return a.regime.localeCompare(b.regime)
-        })
-    } catch (error) {
-      console.error('Erro ao processar dados da empresa:', error)
-      return []
-    }
-  }, [empresaId, ano, obterDadosPorEmpresa])
+    setPaginaAtual(1)
+  }, [termoBusca])
 
   const handleRemover = (id: string, mes: string, regime: string) => {
-    const nomeRegime = REGIMES_TRIBUTARIOS.find(r => r.value === regime)?.label || regime
-    const nomeMes = MESES_ANO.find(m => m.value === mes)?.label || mes
+    setIdParaRemover(id)
+    setDadoParaRemover({ mes, regime })
+  }
+  
+  const confirmarRemocao = async () => {
+    if (!idParaRemover || !dadoParaRemover) return
     
-    const confirmMessage = `⚠️ CONFIRMAÇÃO DE EXCLUSÃO
+    const nomeRegime = REGIMES_TRIBUTARIOS.find(r => r.value === dadoParaRemover.regime)?.label || dadoParaRemover.regime
+    const nomeMes = MESES_ANO.find(m => m.value === dadoParaRemover.mes)?.label || dadoParaRemover.mes
     
-Você está prestes a remover permanentemente:
-• Regime: ${nomeRegime}
-• Período: ${nomeMes}
-• Esta ação não pode ser desfeita
-
-Tem certeza que deseja continuar?`
-    
-    if (confirm(confirmMessage)) {
-      try {
-        removerDadoComparativo(id)
-        toast({
-          title: "✅ Dados removidos",
-          description: `Dados de ${nomeRegime} para ${nomeMes} foram removidos com sucesso.`,
-        })
-      } catch (error) {
-        console.error('Erro ao remover dados:', error)
-        toast({
-          title: "❌ Erro ao remover",
-          description: "Ocorreu um erro ao remover os dados. Tente novamente.",
-          variant: "destructive",
-        })
-      }
+    try {
+      await removerDadoComparativo(idParaRemover)
+      toast({
+        title: "✅ Dados removidos",
+        description: `Dados de ${nomeRegime} para ${nomeMes} foram removidos com sucesso.`,
+      })
+    } catch (error) {
+      console.error('Erro ao remover dados:', error)
+      toast({
+        title: "❌ Erro ao remover",
+        description: "Ocorreu um erro ao remover os dados. Tente novamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setIdParaRemover(null)
+      setDadoParaRemover(null)
     }
   }
 
@@ -192,7 +202,7 @@ Tem certeza que deseja continuar?`
            (dado.outros || 0)
   }
 
-  if (dadosEmpresa.length === 0) {
+  if (dadosOrdenados.length === 0 && !termoBusca) {
     return (
       <Card>
         <CardHeader>
@@ -222,18 +232,47 @@ Tem certeza que deseja continuar?`
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
-          Dados Cadastrados - {ano}
-        </CardTitle>
-        <CardDescription>
-          {dadosEmpresa.length} {dadosEmpresa.length === 1 ? 'registro encontrado' : 'registros encontrados'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Dados Cadastrados - {ano}
+          </CardTitle>
+          <CardDescription>
+            {dadosOrdenados.length} {dadosOrdenados.length === 1 ? 'registro encontrado' : 'registros encontrados'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Campo de busca */}
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            <Input
+              placeholder="Buscar por mês ou regime..."
+              value={termoBusca}
+              onChange={(e) => setTermoBusca(e.target.value)}
+              className="max-w-sm"
+              aria-label="Buscar dados comparativos por mês ou regime"
+            />
+            {termoBusca && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setTermoBusca('')}
+                aria-label="Limpar busca"
+              >
+                Limpar
+              </Button>
+            )}
+          </div>
+          
+          {dadosPaginados.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhum resultado encontrado para "{termoBusca}"
+            </div>
+          ) : (
+            <>
+              <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -247,7 +286,7 @@ Tem certeza que deseja continuar?`
               </TableRow>
             </TableHeader>
             <TableBody>
-              {dadosEmpresa.map((dado) => {
+              {dadosPaginados.map((dado) => {
                 const nomeRegime = REGIMES_TRIBUTARIOS.find(r => r.value === dado.regime)?.label || dado.regime
                 const nomeMes = MESES_ANO.find(m => m.value === dado.mes)?.label || dado.mes
                 const totalImpostos = calcularTotalImpostos(dado)
@@ -330,27 +369,30 @@ Tem certeza que deseja continuar?`
                           size="sm"
                           onClick={() => handleEditar(dado)}
                           className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          aria-label={`Editar dados de ${REGIMES_TRIBUTARIOS.find(r => r.value === dado.regime)?.label} para ${MESES_ANO.find(m => m.value === dado.mes)?.label}`}
                           title="Editar dados"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-4 w-4" aria-hidden="true" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDuplicar(dado)}
                           className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                          aria-label={`Duplicar dados de ${REGIMES_TRIBUTARIOS.find(r => r.value === dado.regime)?.label} para ${MESES_ANO.find(m => m.value === dado.mes)?.label}`}
                           title="Duplicar dados"
                         >
-                          <Copy className="h-4 w-4" />
+                          <Copy className="h-4 w-4" aria-hidden="true" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemover(dado.id, dado.mes, dado.regime)}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          aria-label={`Remover dados de ${REGIMES_TRIBUTARIOS.find(r => r.value === dado.regime)?.label} para ${MESES_ANO.find(m => m.value === dado.mes)?.label}`}
                           title="Remover dados"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                     </TableCell>
@@ -361,7 +403,69 @@ Tem certeza que deseja continuar?`
           </Table>
         </div>
         
-        {dadosEmpresa.length > 0 && (
+        {/* Controles de paginação */}
+        {totalPaginas > 1 && (
+          <div className="flex items-center justify-between px-2">
+            <div className="text-sm text-muted-foreground">
+              Página {paginaAtual} de {totalPaginas} ({dadosOrdenados.length} registros)
+            </div>
+            <div className="flex items-center gap-2" role="navigation" aria-label="Paginação">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
+                disabled={paginaAtual === 1}
+                aria-label="Página anterior"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+                disabled={paginaAtual === totalPaginas}
+                aria-label="Próxima página"
+              >
+                Próxima
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
+        )}
+              </>
+            )}
+        </CardContent>
+      </Card>
+      
+      {/* AlertDialog para confirmação de remoção */}
+      <AlertDialog open={!!idParaRemover} onOpenChange={(open) => !open && setIdParaRemover(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠️ Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              {dadoParaRemover && (
+                <>
+                  <p className="mb-2">Você está prestes a remover permanentemente:</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    <li><strong>Regime:</strong> {REGIMES_TRIBUTARIOS.find(r => r.value === dadoParaRemover.regime)?.label || dadoParaRemover.regime}</li>
+                    <li><strong>Período:</strong> {MESES_ANO.find(m => m.value === dadoParaRemover.mes)?.label || dadoParaRemover.mes}</li>
+                  </ul>
+                  <p className="mt-3 text-destructive font-semibold">Esta ação não pode ser desfeita.</p>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmarRemocao} className="bg-destructive hover:bg-destructive/90">
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+        {dadosOrdenados.length > 0 && (
           <div className="mt-4 p-4 bg-muted/30 rounded-lg">
             <h4 className="font-semibold text-sm mb-3 text-muted-foreground">💡 Como usar as ações:</h4>
             <div className="grid gap-3 md:grid-cols-3 text-sm">

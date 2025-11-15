@@ -2,7 +2,9 @@
 
 import { useMemo } from "react"
 import { useCenariosStore } from "@/stores/cenarios-store"
+import { useRegimesTributariosStore } from "@/stores/regimes-tributarios-store"
 import type { Cenario } from "@/types/cenario"
+import type { DadosComparativoMensal } from "@/types/comparativo"
 import type {
   DadosGraficoEvolucao,
   DadosGraficoComposicao,
@@ -17,6 +19,24 @@ import { ptBR } from "date-fns/locale"
 
 export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: string[]) {
   const { getCenariosByEmpresa } = useCenariosStore()
+  const { obterDadosPorEmpresa } = useRegimesTributariosStore()
+
+  // Obter dados comparativos mensais da empresa
+  const dadosComparativos = useMemo(() => {
+    if (!empresaId) return []
+    const dados = obterDadosPorEmpresa(empresaId)
+    
+    console.log('📊 [useRelatorios] Dados comparativos obtidos:', {
+      total: dados.length,
+      dados: dados
+    })
+    
+    // Filtrar por ano se especificado
+    if (ano) {
+      return dados.filter(d => d.ano === ano)
+    }
+    return dados
+  }, [empresaId, ano, obterDadosPorEmpresa])
 
   // Filtrar cenários da empresa e do ano (se especificado)
   const cenarios = useMemo(() => {
@@ -49,54 +69,75 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
     return cenariosFiltered
   }, [cenarios, mesesFiltrados])
 
-  // Processar dados de evolução temporal
+  // Processar dados de evolução temporal (COMBINA cenários + dados comparativos)
   const dadosEvolucao = useMemo((): DadosGraficoEvolucao[] => {
-    return cenariosAprovados
+    const dadosPorPeriodo = new Map<string, DadosGraficoEvolucao>()
+    
+    // 1. Adicionar dados dos cenários aprovados
+    cenariosAprovados
       .filter((c) => c.periodo.tipo === "mensal")
-      .sort((a, b) => a.periodo.inicio.localeCompare(b.periodo.inicio))
-      .map((cenario) => {
+      .forEach((cenario) => {
         const data = parseISO(cenario.periodo.inicio)
+        const periodo = format(data, "yyyy-MM")
+        const mesAbrev = format(data, "MMM", { locale: ptBR })
         const config = cenario.configuracao
 
-        // Calcular totais
         const receita = config.receitaBruta || 0
-        
-        // ICMS simplificado (média das vendas)
         const baseICMS = receita * (1 - (config.percentualST || 0) / 100)
         const icms = baseICMS * ((config.icmsInterno || 0) / 100)
-        
-        // PIS/COFINS
         const basePIS = receita * (1 - (config.percentualMonofasico || 0) / 100)
         const pis = basePIS * ((config.pisAliq || 0) / 100)
         const cofins = basePIS * ((config.cofinsAliq || 0) / 100)
-        
-        // Despesas totais
         const despesas = (config.salariosPF || 0) + (config.alimentacao || 0) + 
                         (config.combustivelPasseio || 0) + (config.outrasDespesas || 0)
-        
-        // Base IRPJ/CSLL
         const baseIR = receita - (config.cmvTotal || 0) - despesas + 
                        (config.adicoesLucro || 0) - (config.exclusoesLucro || 0)
         const irpj = Math.max(0, baseIR * ((config.irpjBase || 0) / 100))
         const csll = Math.max(0, baseIR * ((config.csllAliq || 0) / 100))
-        
-        // ISS
         const iss = receita * ((config.issAliq || 0) / 100)
         
         const totalImpostos = icms + pis + cofins + irpj + csll + iss
         const lucro = receita - totalImpostos - despesas - (config.cmvTotal || 0)
 
-        return {
-          mes: format(data, "MMM", { locale: ptBR }),
-          periodo: format(data, "yyyy-MM"),
+        dadosPorPeriodo.set(periodo, {
+          mes: mesAbrev,
+          periodo,
           receita,
           impostos: totalImpostos,
           lucro,
-        }
+        })
       })
-  }, [cenariosAprovados])
+    
+    // 2. Adicionar/sobrepor dados comparativos (dados reais têm prioridade)
+    dadosComparativos.forEach((dado) => {
+      // Mapear mês de "jan" para número "01"
+      const mesNumero = {
+        'jan': '01', 'fev': '02', 'mar': '03', 'abr': '04',
+        'mai': '05', 'jun': '06', 'jul': '07', 'ago': '08',
+        'set': '09', 'out': '10', 'nov': '11', 'dez': '12'
+      }[dado.mes] || '01'
+      
+      const periodo = `${dado.ano}-${mesNumero}`
+      const totalImpostos = (dado.icms || 0) + (dado.pis || 0) + (dado.cofins || 0) + 
+                           (dado.irpj || 0) + (dado.csll || 0) + (dado.iss || 0) + (dado.outros || 0)
+      const lucro = (dado.receita || 0) - totalImpostos
+      
+      // Dados comparativos sobrescrevem dados de cenários
+      dadosPorPeriodo.set(periodo, {
+        mes: dado.mes,
+        periodo,
+        receita: dado.receita || 0,
+        impostos: totalImpostos,
+        lucro,
+      })
+    })
+    
+    // 3. Converter mapa para array e ordenar
+    return Array.from(dadosPorPeriodo.values())
+      .sort((a, b) => a.periodo.localeCompare(b.periodo))
+  }, [cenariosAprovados, dadosComparativos])
 
-  // Processar composição de impostos
+  // Processar composição de impostos (COMBINA cenários + dados comparativos)
   const dadosComposicao = useMemo((): DadosGraficoComposicao[] => {
     const totais = {
       icms: 0,
@@ -107,6 +148,7 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
       iss: 0,
     }
 
+    // 1. Somar impostos dos cenários aprovados
     cenariosAprovados.forEach((cenario) => {
       const config = cenario.configuracao
       const receita = config.receitaBruta || 0
@@ -123,6 +165,16 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
       totais.irpj += Math.max(0, baseIR * ((config.irpjBase || 0) / 100))
       totais.csll += Math.max(0, baseIR * ((config.csllAliq || 0) / 100))
       totais.iss += receita * ((config.issAliq || 0) / 100)
+    })
+    
+    // 2. Somar impostos dos dados comparativos
+    dadosComparativos.forEach((dado) => {
+      totais.icms += dado.icms || 0
+      totais.pis += dado.pis || 0
+      totais.cofins += dado.cofins || 0
+      totais.irpj += dado.irpj || 0
+      totais.csll += dado.csll || 0
+      totais.iss += dado.iss || 0
     })
 
     const total = Object.values(totais).reduce((sum, val) => sum + val, 0)
@@ -145,15 +197,16 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
       }))
       .filter((item) => item.valor > 0)
       .sort((a, b) => b.valor - a.valor)
-  }, [cenariosAprovados])
+  }, [cenariosAprovados, dadosComparativos])
 
-  // Calcular margens
+  // Calcular margens (COMBINA cenários + dados comparativos)
   const dadosMargem = useMemo((): DadosGraficoMargem[] => {
     let receitaTotal = 0
     let custosTotal = 0
     let impostosTotal = 0
     let despesasTotal = 0
 
+    // 1. Somar valores dos cenários aprovados
     cenariosAprovados.forEach((cenario) => {
       const config = cenario.configuracao
       const receita = config.receitaBruta || 0
@@ -176,6 +229,15 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
       despesasTotal += despesas
       impostosTotal += icms + pis + cofins + irpj + csll + iss
     })
+    
+    // 2. Somar valores dos dados comparativos
+    dadosComparativos.forEach((dado) => {
+      const totalImpostosDado = (dado.icms || 0) + (dado.pis || 0) + (dado.cofins || 0) + 
+                                (dado.irpj || 0) + (dado.csll || 0) + (dado.iss || 0) + (dado.outros || 0)
+      receitaTotal += dado.receita || 0
+      impostosTotal += totalImpostosDado
+      // Nota: dados comparativos não têm custos/despesas detalhados
+    })
 
     const lucroBruto = receitaTotal - custosTotal
     const lucroLiquido = receitaTotal - custosTotal - despesasTotal - impostosTotal
@@ -187,9 +249,9 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
       { categoria: "Margem Bruta", valor: margemBruta, meta: 40 },
       { categoria: "Margem Líquida", valor: margemLiquida, meta: 20 },
     ]
-  }, [cenariosAprovados])
+  }, [cenariosAprovados, dadosComparativos])
 
-  // Calcular métricas financeiras abrangentes
+  // Calcular métricas financeiras abrangentes (COMBINA cenários + dados comparativos)
   const dadosMetricasFinanceiras = useMemo((): DadosMetricasFinanceiras[] => {
     let receitaTotal = 0
     let custosTotal = 0
@@ -200,6 +262,7 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
     let irpjTotal = 0
     let csllTotal = 0
 
+    // 1. Somar métricas dos cenários aprovados
     cenariosAprovados.forEach((cenario) => {
       const config = cenario.configuracao
       const receita = config.receitaBruta || 0
@@ -224,6 +287,16 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
       cofinsTotal += cofins
       irpjTotal += irpj
       csllTotal += csll
+    })
+    
+    // 2. Somar métricas dos dados comparativos
+    dadosComparativos.forEach((dado) => {
+      receitaTotal += dado.receita || 0
+      icmsTotal += dado.icms || 0
+      pisTotal += dado.pis || 0
+      cofinsTotal += dado.cofins || 0
+      irpjTotal += dado.irpj || 0
+      csllTotal += dado.csll || 0
     })
 
     const lucroLiquido = receitaTotal - custosTotal - despesasTotal - icmsTotal - pisTotal - cofinsTotal - irpjTotal - csllTotal
@@ -265,15 +338,19 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
         percentual: receitaTotal > 0 ? (cofinsTotal / receitaTotal) * 100 : 0 
       },
     ]
-  }, [cenariosAprovados])
+  }, [cenariosAprovados, dadosComparativos])
 
-  // Calcular evolução financeira mensal
+  // Calcular evolução financeira mensal (COMBINA cenários + dados comparativos)
   const dadosEvolucaoFinanceira = useMemo((): DadosEvolucaoFinanceira[] => {
-    return cenariosAprovados
+    const dadosPorPeriodo = new Map<string, DadosEvolucaoFinanceira>()
+    
+    // 1. Adicionar dados dos cenários aprovados
+    cenariosAprovados
       .filter((c) => c.periodo.tipo === "mensal")
-      .sort((a, b) => a.periodo.inicio.localeCompare(b.periodo.inicio))
-      .map((cenario) => {
+      .forEach((cenario) => {
         const data = parseISO(cenario.periodo.inicio)
+        const periodo = format(data, "yyyy-MM")
+        const mesAbrev = format(data, "MMM", { locale: ptBR })
         const config = cenario.configuracao
 
         const receita = config.receitaBruta || 0
@@ -292,8 +369,8 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
 
         const lucroLiquido = receita - custos - despesas - icms - pis - cofins - irpj - csll
 
-        return {
-          mes: format(data, "MMM", { locale: ptBR }),
+        dadosPorPeriodo.set(periodo, {
+          mes: mesAbrev,
           receita,
           lucroLiquido,
           icms,
@@ -301,17 +378,54 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
           csll,
           pis,
           cofins,
-        }
+        })
       })
-  }, [cenariosAprovados])
+    
+    // 2. Adicionar/sobrepor dados comparativos (dados reais têm prioridade)
+    dadosComparativos.forEach((dado) => {
+      const mesNumero = {
+        'jan': '01', 'fev': '02', 'mar': '03', 'abr': '04',
+        'mai': '05', 'jun': '06', 'jul': '07', 'ago': '08',
+        'set': '09', 'out': '10', 'nov': '11', 'dez': '12'
+      }[dado.mes] || '01'
+      
+      const periodo = `${dado.ano}-${mesNumero}`
+      const totalImpostos = (dado.icms || 0) + (dado.pis || 0) + (dado.cofins || 0) + 
+                           (dado.irpj || 0) + (dado.csll || 0) + (dado.iss || 0) + (dado.outros || 0)
+      const lucroLiquido = (dado.receita || 0) - totalImpostos
+      
+      dadosPorPeriodo.set(periodo, {
+        mes: dado.mes,
+        receita: dado.receita || 0,
+        lucroLiquido,
+        icms: dado.icms || 0,
+        irpj: dado.irpj || 0,
+        csll: dado.csll || 0,
+        pis: dado.pis || 0,
+        cofins: dado.cofins || 0,
+      })
+    })
+    
+    // 3. Converter mapa para array e ordenar
+    return Array.from(dadosPorPeriodo.values())
+      .sort((a, b) => {
+        // Ordenar por mês
+        const mesesOrdem = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+        return mesesOrdem.indexOf(a.mes) - mesesOrdem.indexOf(b.mes)
+      })
+  }, [cenariosAprovados, dadosComparativos])
 
-  // Gerar linhas da tabela consolidada
+  // Gerar linhas da tabela consolidada (COMBINA cenários + dados comparativos)
   const linhasTabela = useMemo((): LinhaRelatorioAnual[] => {
-    return cenariosAprovados
+    const linhasPorPeriodo = new Map<string, LinhaRelatorioAnual>()
+    
+    // 1. Adicionar linhas dos cenários aprovados
+    cenariosAprovados
       .filter((c) => c.periodo.tipo === "mensal")
-      .sort((a, b) => a.periodo.inicio.localeCompare(b.periodo.inicio))
-      .map((cenario) => {
+      .forEach((cenario) => {
         const data = parseISO(cenario.periodo.inicio)
+        const periodo = format(data, "yyyy-MM")
+        const mesNome = format(data, "MMMM", { locale: ptBR })
         const config = cenario.configuracao
 
         const receita = config.receitaBruta || 0
@@ -337,9 +451,9 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
         const margemLiquida = receita > 0 ? (lucroLiquido / receita) * 100 : 0
         const cargaTributaria = receita > 0 ? (totalImpostos / receita) * 100 : 0
 
-        return {
-          mes: format(data, "MMMM", { locale: ptBR }),
-          periodo: format(data, "yyyy-MM"),
+        linhasPorPeriodo.set(periodo, {
+          mes: mesNome,
+          periodo,
           receita,
           custos,
           lucroBruto,
@@ -355,9 +469,70 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
           margemBruta,
           margemLiquida,
           cargaTributaria,
-        }
+        })
       })
-  }, [cenariosAprovados])
+    
+    // 2. Adicionar/sobrepor linhas dos dados comparativos (dados reais têm prioridade)
+    dadosComparativos.forEach((dado) => {
+      const mesNumero = {
+        'jan': '01', 'fev': '02', 'mar': '03', 'abr': '04',
+        'mai': '05', 'jun': '06', 'jul': '07', 'ago': '08',
+        'set': '09', 'out': '10', 'nov': '11', 'dez': '12'
+      }[dado.mes] || '01'
+      
+      const mesNome = {
+        'jan': 'janeiro', 'fev': 'fevereiro', 'mar': 'março', 'abr': 'abril',
+        'mai': 'maio', 'jun': 'junho', 'jul': 'julho', 'ago': 'agosto',
+        'set': 'setembro', 'out': 'outubro', 'nov': 'novembro', 'dez': 'dezembro'
+      }[dado.mes] || 'janeiro'
+      
+      const periodo = `${dado.ano}-${mesNumero}`
+      const receita = dado.receita || 0
+      const icms = dado.icms || 0
+      const pis = dado.pis || 0
+      const cofins = dado.cofins || 0
+      const irpj = dado.irpj || 0
+      const csll = dado.csll || 0
+      const iss = dado.iss || 0
+      const outros = dado.outros || 0
+      
+      const totalImpostos = icms + pis + cofins + irpj + csll + iss + outros
+      
+      // Dados comparativos não têm custos/despesas detalhados
+      const custos = 0
+      const despesas = 0
+      const lucroBruto = receita - custos
+      const lucroLiquido = receita - totalImpostos
+      
+      const margemBruta = receita > 0 ? (lucroBruto / receita) * 100 : 0
+      const margemLiquida = receita > 0 ? (lucroLiquido / receita) * 100 : 0
+      const cargaTributaria = receita > 0 ? (totalImpostos / receita) * 100 : 0
+      
+      linhasPorPeriodo.set(periodo, {
+        mes: mesNome,
+        periodo,
+        receita,
+        custos,
+        lucroBruto,
+        despesas,
+        icms,
+        pis,
+        cofins,
+        irpj,
+        csll,
+        iss,
+        totalImpostos,
+        lucroLiquido,
+        margemBruta,
+        margemLiquida,
+        cargaTributaria,
+      })
+    })
+    
+    // 3. Converter mapa para array e ordenar por período
+    return Array.from(linhasPorPeriodo.values())
+      .sort((a, b) => a.periodo.localeCompare(b.periodo))
+  }, [cenariosAprovados, dadosComparativos])
 
   // Calcular totais gerais
   const totais = useMemo((): TotaisRelatorio => {
@@ -409,19 +584,28 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
     }
   }, [linhasTabela])
 
-  // Anos disponíveis para filtro
+  // Anos disponíveis para filtro (inclui anos de cenários E dados comparativos)
   const anosDisponiveis = useMemo(() => {
     const anos = new Set<number>()
+    
+    // Anos dos cenários
     cenarios.forEach((c) => {
       const ano = new Date(c.periodo.inicio).getFullYear()
       anos.add(ano)
     })
+    
+    // Anos dos dados comparativos
+    dadosComparativos.forEach((d) => {
+      anos.add(d.ano)
+    })
+    
     return Array.from(anos).sort((a, b) => b - a)
-  }, [cenarios])
+  }, [cenarios, dadosComparativos])
 
   return {
     cenarios,
     cenariosAprovados,
+    dadosComparativos, // Incluir dados comparativos no retorno
     dadosEvolucao,
     dadosComposicao,
     dadosMargem,
@@ -430,6 +614,6 @@ export function useRelatorios(empresaId: string, ano?: number, mesesFiltrados?: 
     linhasTabela,
     totais,
     anosDisponiveis,
-    temDados: cenariosAprovados.length > 0,
+    temDados: cenariosAprovados.length > 0 || dadosComparativos.length > 0, // Tem dados se houver cenários OU comparativos
   }
 }

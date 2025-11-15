@@ -52,6 +52,8 @@ export default function ComparativoDetalhesPage({
 
   useEffect(() => {
     if (comparativoId) {
+      console.log('🔍 [PAGE] Carregando comparativo com ID:', comparativoId)
+      console.log('🔍 [PAGE] Empresa ID:', empresaId)
       obterComparativo(comparativoId)
     }
   }, [comparativoId, obterComparativo])

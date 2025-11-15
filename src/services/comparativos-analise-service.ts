@@ -721,19 +721,30 @@ export class ComparativosAnaliseService {
     // Extrair informações da configuração se existir
     const config = data.configuracao || {}
     
-    const keysResultados = data.resultados ? Object.keys(data.resultados) : []
+    // 🔥 CRÍTICO: Resultados podem vir como string JSON do banco
+    let resultadosParseados = data.resultados
+    
+    if (typeof data.resultados === 'string') {
+      try {
+        console.log('📦 [fromSupabaseFormat] Fazendo parse de resultados (string → objeto)')
+        resultadosParseados = JSON.parse(data.resultados)
+      } catch (parseError) {
+        console.error('❌ [fromSupabaseFormat] Erro ao fazer parse de resultados:', parseError)
+        resultadosParseados = {}
+      }
+    }
+    
+    const keysResultados = resultadosParseados ? Object.keys(resultadosParseados) : []
     
     console.log('🔧 [fromSupabaseFormat] Convertendo dados:', {
-      temResultados: !!data.resultados,
-      tipoResultados: typeof data.resultados,
+      tipoOriginal: typeof data.resultados,
+      eraString: typeof data.resultados === 'string',
+      tipoAposeParse: typeof resultadosParseados,
+      temResultados: !!resultadosParseados,
       quantidadeChaves: keysResultados.length,
       todasAsChaves: keysResultados,
-      primeiroValor: data.resultados ? data.resultados[keysResultados[0]] : null
+      primeiroRegistro: resultadosParseados ? resultadosParseados[keysResultados[0]] : null
     })
-    
-    // data.resultados vem do Supabase como AnaliseComparativa completa
-    // Precisamos adaptá-la para a estrutura antiga esperada pelo componente
-    // que é: { analise: AnaliseComparativa, lucroReal?, lucroPresumido?, simplesNacional? }
     
     return {
       id: data.id,
@@ -745,9 +756,8 @@ export class ComparativosAnaliseService {
       ano: config.ano || new Date().getFullYear(),
       regimesIncluidos: this.extrairRegimesIncluidos(config),
       fonteDados: config,
-      // CORREÇÃO: data.resultados JÁ É a AnaliseComparativa
-      // O componente espera isso diretamente, não wrapped em { analise: ... }
-      resultados: data.resultados as any,
+      // Agora resultadosParseados é um objeto JavaScript válido
+      resultados: resultadosParseados as any,
       criadoEm: new Date(data.created_at),
       atualizadoEm: new Date(data.updated_at)
     }

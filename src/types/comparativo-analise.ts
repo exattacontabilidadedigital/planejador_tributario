@@ -112,9 +112,13 @@ export interface ImpostosPorTipo {
 export interface DadosMensalRegime {
   mes: string
   ano: number
+  regime?: string // Regime tributário: lucro_real, lucro_presumido, simples_nacional
   receita: number
-  impostos: number
-  lucro: number
+  impostos: ImpostosPorTipo // Detalhamento por tipo
+  totalImpostos?: number // Total de impostos somados
+  lucro: number // Lucro líquido (receita - totalImpostos)
+  lucroLiquido?: number // Alias para compatibilidade
+  cargaTributaria?: number // % sobre receita
   estimado: boolean // Se foi estimado por falta de dados
 }
 

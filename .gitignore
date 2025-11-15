@@ -28,6 +28,24 @@ yarn-error.log*
 .env*.local
 .env
 
+# Arquivos de debug/teste com potenciais credenciais
+debug-*.js
+debug-*.mjs
+test-*.js
+test-*.mjs
+verificar-*.js
+verificar-*.mjs
+testar-*.js
+testar-*.mjs
+buscar-*.js
+corrigir-*.js
+migrate-*.mjs
+criar-*.js
+deletar-*.js
+atualizar-*.js
+comparar-*.js
+analisar-*.js
+
 # vercel
 .vercel
 

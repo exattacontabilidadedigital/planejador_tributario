@@ -44,7 +44,7 @@ export function GraficoDashboardComparativo({
   
   // Estado para controlar modal de detalhamento
   const [modalAberto, setModalAberto] = useState(false)
-  const [regimeSelecionado, setRegimeSelecionado] = useState<'lucro_real' | 'lucro_presumido' | null>(null)
+  const [regimeSelecionado, setRegimeSelecionado] = useState<'lucro_real' | 'lucro_presumido' | 'simples_nacional' | null>(null)
   const [dadosDetalhados, setDadosDetalhados] = useState<any[] | null>(null)
   
   // Estado para tipo de visualização
@@ -52,9 +52,32 @@ export function GraficoDashboardComparativo({
   const [tipoVisualizacao, setTipoVisualizacao] = useState<TipoVisualizacao>('linha')
   
   // Função para abrir modal com detalhes
-  const abrirDetalhamento = (regime: 'lucro_real' | 'lucro_presumido') => {
+  const abrirDetalhamento = (regime: 'lucro_real' | 'lucro_presumido' | 'simples_nacional') => {
+    console.log('🔍 [DETALHAMENTO] Abrindo modal para:', regime)
+    console.log('🔍 [DETALHAMENTO] Dados disponíveis:', {
+      lucroReal: dadosLucroReal?.length || 0,
+      lucroPresumido: dadosLucroPresumido?.length || 0,
+      simplesNacional: dadosSimplesNacional?.length || 0
+    })
+    
     setRegimeSelecionado(regime)
-    setDadosDetalhados(regime === 'lucro_real' ? dadosLucroReal || [] : dadosLucroPresumido || [])
+    
+    let dados: any[] = []
+    if (regime === 'lucro_real') {
+      dados = dadosLucroReal || []
+    } else if (regime === 'lucro_presumido') {
+      dados = dadosLucroPresumido || []
+    } else if (regime === 'simples_nacional') {
+      dados = dadosSimplesNacional || []
+    }
+    
+    console.log('🔍 [DETALHAMENTO] Dados selecionados:', {
+      regime,
+      quantidade: dados.length,
+      primeiroItem: dados[0]
+    })
+    
+    setDadosDetalhados(dados)
     setModalAberto(true)
   }
   
@@ -229,31 +252,71 @@ export function GraficoDashboardComparativo({
 
   // Calcular estatísticas para insights
   const calcularEstatisticas = () => {
-    // Calcular totais de impostos de cada regime
-    const totalImpostosLucroReal = dadosGrafico.reduce((sum, d) => sum + (d.impostosLucroReal || 0), 0)
-    const totalImpostosLucroPresumido = dadosGrafico.reduce((sum, d) => sum + (d.impostosLucroPresumido || 0), 0)
-    const totalImpostosSimplesNacional = dadosGrafico.reduce((sum, d) => sum + (d.impostosSimplesNacional || 0), 0)
+    // Calcular totais de impostos de cada regime (usar Math.abs para garantir valores positivos)
+    const totalImpostosLucroReal = Math.abs(dadosGrafico.reduce((sum, d) => sum + (d.impostosLucroReal || 0), 0))
+    const totalImpostosLucroPresumido = Math.abs(dadosGrafico.reduce((sum, d) => sum + (d.impostosLucroPresumido || 0), 0))
+    const totalImpostosSimplesNacional = Math.abs(dadosGrafico.reduce((sum, d) => sum + (d.impostosSimplesNacional || 0), 0))
+    
+    console.log('📊 [STATS] Totais calculados:', {
+      lucroReal: totalImpostosLucroReal,
+      lucroPresumido: totalImpostosLucroPresumido,
+      simplesNacional: totalImpostosSimplesNacional
+    })
     
     const totalReceita = dadosGrafico.reduce((sum, d) => 
       sum + Math.max(d.receitaReal || 0, d.receitaPresumido || 0, d.receitaSimples || 0), 0)
     
-    // Encontrar o regime com MENOR carga tributária (mais vantajoso)
-    const regimes = [
-      { nome: 'Lucro Real', total: totalImpostosLucroReal, cor: '#ef4444' },
-      { nome: 'Lucro Presumido', total: totalImpostosLucroPresumido, cor: '#3b82f6' },
-      { nome: 'Simples Nacional', total: totalImpostosSimplesNacional, cor: '#10b981' }
-    ].filter(r => r.total > 0)
+    // Criar lista de regimes que realmente têm dados (dinâmico)
+    const regimesComDados = []
     
-    // Melhor regime = MENOR total de impostos
-    const melhorRegime = regimes.reduce((best, current) => 
-      current.total < best.total ? current : best, regimes[0] || { nome: 'N/A', total: 0, cor: '#000' })
+    if (dadosLucroReal && dadosLucroReal.length > 0 && totalImpostosLucroReal > 0) {
+      regimesComDados.push({ 
+        nome: 'Lucro Real', 
+        total: totalImpostosLucroReal, 
+        cor: '#ef4444',
+        tipo: 'lucro_real' as const
+      })
+    }
     
-    // Pior regime = MAIOR total de impostos
-    const piorRegime = regimes.reduce((worst, current) => 
-      current.total > worst.total ? current : worst, regimes[0] || { nome: 'N/A', total: 0, cor: '#000' })
+    if (dadosLucroPresumido && dadosLucroPresumido.length > 0 && totalImpostosLucroPresumido > 0) {
+      regimesComDados.push({ 
+        nome: 'Lucro Presumido', 
+        total: totalImpostosLucroPresumido, 
+        cor: '#3b82f6',
+        tipo: 'lucro_presumido' as const
+      })
+    }
     
-    const economia = piorRegime.total - melhorRegime.total
+    if (dadosSimplesNacional && dadosSimplesNacional.length > 0 && totalImpostosSimplesNacional > 0) {
+      regimesComDados.push({ 
+        nome: 'Simples Nacional', 
+        total: totalImpostosSimplesNacional, 
+        cor: '#10b981',
+        tipo: 'simples_nacional' as const
+      })
+    }
+    
+    console.log('📊 [STATS] Regimes com dados:', regimesComDados)
+    
+    // Melhor regime = MENOR total de impostos (mais econômico)
+    const melhorRegime = regimesComDados.reduce((best, current) => 
+      current.total < best.total ? current : best, regimesComDados[0] || { nome: 'N/A', total: 0, cor: '#000', tipo: 'lucro_real' as const })
+    
+    // Pior regime = MAIOR total de impostos (menos vantajoso)
+    const piorRegime = regimesComDados.reduce((worst, current) => 
+      current.total > worst.total ? current : worst, regimesComDados[0] || { nome: 'N/A', total: 0, cor: '#000', tipo: 'lucro_real' as const })
+    
+    // Economia = quanto você economiza escolhendo o melhor ao invés do pior
+    const economia = Math.abs(piorRegime.total - melhorRegime.total)
+    // Percentual = economia em relação ao pior regime
     const economiaPercentual = piorRegime.total > 0 ? (economia / piorRegime.total * 100) : 0
+    
+    console.log('📊 [STATS] Resultado:', {
+      melhorRegime: { nome: melhorRegime.nome, total: melhorRegime.total },
+      piorRegime: { nome: piorRegime.nome, total: piorRegime.total },
+      economia,
+      economiaPercentual
+    })
     
     // Encontrar mês com menor imposto
     const melhorMes = dadosGrafico.reduce((best, curr) => {
@@ -275,6 +338,7 @@ export function GraficoDashboardComparativo({
       totalImpostosLucroReal,
       totalImpostosLucroPresumido,
       totalImpostosSimplesNacional,
+      regimesComDados, // ✨ NOVO: lista dinâmica dos regimes
       melhorRegime,
       piorRegime,
       economia,
@@ -283,68 +347,172 @@ export function GraficoDashboardComparativo({
     }
   }
 
+  // Função para obter nome dinâmico do regime baseado nos dados reais da coluna "regime"
+  const obterNomeRegimeDinamico = () => {
+    console.log('🔍 [REGIME DINÂMICO] Detectando regime dos dados comparativos...')
+    console.log('🔍 [REGIME DINÂMICO] PROPS RECEBIDAS:', {
+      dadosLucroPresumido_total: dadosLucroPresumido?.length || 0,
+      dadosLucroPresumido_primeiro: dadosLucroPresumido?.[0],
+      dadosLucroPresumido_todos: dadosLucroPresumido,
+      dadosSimplesNacional_total: dadosSimplesNacional?.length || 0,
+      dadosSimplesNacional_primeiro: dadosSimplesNacional?.[0],
+      dadosSimplesNacional_todos: dadosSimplesNacional
+    })
+    
+    // 1. Verificar qual prop tem dados
+    const temPresumido = dadosLucroPresumido && dadosLucroPresumido.length > 0
+    const temSimples = dadosSimplesNacional && dadosSimplesNacional.length > 0
+    
+    // 2. Tentar extrair o regime DIRETAMENTE da coluna "regime" dos dados
+    let regimeDetectado: string | undefined
+    let fonte: string = ''
+    
+    // IMPORTANTE: Verificar o campo regime em AMBAS as props, pois os dados podem estar na prop "errada"
+    if (temPresumido) {
+      const primeiroRegistro = dadosLucroPresumido[0] as any
+      regimeDetectado = primeiroRegistro?.regime
+      fonte = 'dadosLucroPresumido'
+      
+      console.log('🔍 [REGIME DINÂMICO] Verificando dadosLucroPresumido:', {
+        regime: regimeDetectado,
+        totalRegistros: dadosLucroPresumido.length,
+        primeiroMes: primeiroRegistro?.mes,
+        primeiroAno: primeiroRegistro?.ano,
+        todasPropriedades: Object.keys(primeiroRegistro || {})
+      })
+    }
+    
+    if (temSimples && !regimeDetectado) {
+      const primeiroRegistro = dadosSimplesNacional[0] as any
+      regimeDetectado = primeiroRegistro?.regime
+      fonte = 'dadosSimplesNacional'
+      
+      console.log('🔍 [REGIME DINÂMICO] Verificando dadosSimplesNacional:', {
+        regime: regimeDetectado,
+        totalRegistros: dadosSimplesNacional.length,
+        primeiroMes: primeiroRegistro?.mes,
+        primeiroAno: primeiroRegistro?.ano,
+        todasPropriedades: Object.keys(primeiroRegistro || {})
+      })
+    }
+    
+    // 3. Mapear valor da coluna regime para nome amigável
+    const mapearRegime = (regime: string | undefined): string => {
+      if (!regime) {
+        console.warn('⚠️ [REGIME DINÂMICO] Campo regime não encontrado nos dados!')
+        console.warn('⚠️ [REGIME DINÂMICO] Tentando inferir pelo contexto...')
+        
+        // FALLBACK: Se não tem regime, verificar qual prop tem dados
+        // Se só tem dadosSimplesNacional com dados, é Simples Nacional
+        // Se só tem dadosLucroPresumido com dados, tentar inferir pelos impostos
+        if (temSimples && !temPresumido) {
+          console.log('✅ [REGIME DINÂMICO] Inferido: Simples Nacional (única prop com dados)')
+          return 'Simples Nacional'
+        }
+        
+        if (temPresumido && !temSimples) {
+          // Verificar se tem DAS (característico do Simples Nacional)
+          const primeiroRegistro = dadosLucroPresumido[0] as any
+          const impostos = primeiroRegistro?.impostos || {}
+          
+          if (impostos.das && impostos.das > 0) {
+            console.log('✅ [REGIME DINÂMICO] Inferido: Simples Nacional (tem DAS nos impostos)')
+            return 'Simples Nacional'
+          }
+          
+          // Se não tem DAS mas tem IRPJ/CSLL separados, é Lucro Presumido ou Real
+          if ((impostos.irpj && impostos.irpj > 0) || (impostos.csll && impostos.csll > 0)) {
+            console.log('✅ [REGIME DINÂMICO] Inferido: Lucro Presumido (tem IRPJ/CSLL separados)')
+            return 'Lucro Presumido'
+          }
+          
+          console.log('⚠️ [REGIME DINÂMICO] Não conseguiu inferir, usando fallback genérico')
+          return 'Regime Comparativo'
+        }
+        
+        return 'Regime Comparativo'
+      }
+      
+      const mapa: Record<string, string> = {
+        'lucro_presumido': 'Lucro Presumido',
+        'lucroPresumido': 'Lucro Presumido',
+        'presumido': 'Lucro Presumido',
+        'simples_nacional': 'Simples Nacional',
+        'simplesNacional': 'Simples Nacional',
+        'simples': 'Simples Nacional',
+        'lucro_real': 'Lucro Real',
+        'lucroReal': 'Lucro Real'
+      }
+      
+      const nomeFormatado = mapa[regime] || regime
+      console.log('✅ [REGIME DINÂMICO] Mapeamento completo:', { 
+        de: regime, 
+        para: nomeFormatado,
+        fonte,
+        propCorreta: regime === 'lucro_presumido' ? 'dadosLucroPresumido' : 'dadosSimplesNacional',
+        propUsada: fonte,
+        matchCorreto: (regime === 'lucro_presumido' && fonte === 'dadosLucroPresumido') || 
+                      (regime === 'simples_nacional' && fonte === 'dadosSimplesNacional')
+      })
+      return nomeFormatado
+    }
+    
+    const nomeFormatado = mapearRegime(regimeDetectado)
+    
+    return nomeFormatado
+  }
+
+  const nomeRegimeDinamico = obterNomeRegimeDinamico()
+
   const stats = calcularEstatisticas()
   
   return (
     <>
       {/* Cards de Resumo */}
       <div className="col-span-full grid grid-cols-4 gap-4">
-        {/* Card: Receita Total */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Receita total</CardDescription>
-            <CardTitle className="text-2xl text-green-600">
-              {formatarMoedaTooltip(stats.totalReceita)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Performance sólida</p>
-          </CardContent>
-        </Card>
-
-        {/* Card: Lucro Real */}
+        {/* Card: Cenário Principal (Lucro Real) */}
         <Card 
-          className={`cursor-pointer transition-all hover:shadow-lg ${stats.melhorRegime.nome === 'Lucro Real' ? 'border-green-500/50' : stats.piorRegime.nome === 'Lucro Real' ? 'border-red-500/50' : ''}`}
+          className="border-primary/50 cursor-pointer transition-all hover:shadow-lg"
           onClick={() => abrirDetalhamento('lucro_real')}
         >
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center justify-between">
-              <span>Lucro Real</span>
-              {stats.melhorRegime.nome === 'Lucro Real' && (
-                <span className="text-xs font-semibold text-green-600">✓ Mais Econômico</span>
-              )}
-              {stats.piorRegime.nome === 'Lucro Real' && (
-                <span className="text-xs font-semibold text-red-600">Menos Vantajoso</span>
-              )}
+              <span className="font-semibold">Cenário Principal</span>
+              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">Lucro Real</span>
             </CardDescription>
-            <CardTitle className={`text-2xl ${stats.melhorRegime.nome === 'Lucro Real' ? 'text-green-600' : stats.piorRegime.nome === 'Lucro Real' ? 'text-red-500' : 'text-blue-500'}`}>
+            <CardTitle className="text-2xl text-blue-600">
               {formatarMoedaTooltip(stats.totalImpostosLucroReal)}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs text-muted-foreground">
-              Clique para ver detalhes
-            </p>
+            <p className="text-xs text-muted-foreground">Clique para ver detalhes</p>
           </CardContent>
         </Card>
 
-        {/* Card: Lucro Presumido */}
+        {/* Card: Dados Comparativos (Regime Dinâmico) */}
         <Card 
-          className={`cursor-pointer transition-all hover:shadow-lg ${stats.melhorRegime.nome === 'Lucro Presumido' ? 'border-green-500/50' : stats.piorRegime.nome === 'Lucro Presumido' ? 'border-red-500/50' : ''}`}
-          onClick={() => abrirDetalhamento('lucro_presumido')}
+          className={`cursor-pointer transition-all hover:shadow-lg border-2 ${stats.melhorRegime.nome === nomeRegimeDinamico ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : stats.piorRegime.nome === nomeRegimeDinamico ? 'border-red-500/50 bg-red-50/50 dark:bg-red-950/20' : 'border-muted'}`}
+          onClick={() => {
+            // Determinar qual regime abrir baseado no nome dinâmico
+            const regimeParaAbrir = nomeRegimeDinamico === 'Lucro Presumido' 
+              ? 'lucro_presumido' 
+              : 'simples_nacional'
+            abrirDetalhamento(regimeParaAbrir)
+          }}
         >
           <CardHeader className="pb-3">
             <CardDescription className="flex items-center justify-between">
-              <span>Lucro Presumido</span>
-              {stats.melhorRegime.nome === 'Lucro Presumido' && (
-                <span className="text-xs font-semibold text-green-600">✓ Mais Econômico</span>
-              )}
-              {stats.piorRegime.nome === 'Lucro Presumido' && (
-                <span className="text-xs font-semibold text-red-600">Menos Vantajoso</span>
-              )}
+              <span className="font-semibold">Dados Comparativos</span>
+              <span className="text-xs bg-secondary px-2 py-1 rounded font-medium">{nomeRegimeDinamico}</span>
             </CardDescription>
-            <CardTitle className={`text-2xl ${stats.melhorRegime.nome === 'Lucro Presumido' ? 'text-green-600' : stats.piorRegime.nome === 'Lucro Presumido' ? 'text-red-500' : 'text-blue-500'}`}>
-              {formatarMoedaTooltip(stats.totalImpostosLucroPresumido)}
+            <CardTitle className={`text-2xl flex items-center gap-2 ${stats.melhorRegime.nome === nomeRegimeDinamico ? 'text-green-600' : stats.piorRegime.nome === nomeRegimeDinamico ? 'text-red-500' : 'text-blue-500'}`}>
+              {nomeRegimeDinamico === 'Lucro Presumido' ? formatarMoedaTooltip(stats.totalImpostosLucroPresumido) : formatarMoedaTooltip(stats.totalImpostosSimplesNacional)}
+              {stats.melhorRegime.nome === nomeRegimeDinamico && stats.piorRegime.nome !== nomeRegimeDinamico && (
+                <span className="text-xs font-semibold text-green-600 bg-green-100 dark:bg-green-900 px-2 py-1 rounded">✓ Mais Econômico</span>
+              )}
+              {stats.piorRegime.nome === nomeRegimeDinamico && stats.melhorRegime.nome !== nomeRegimeDinamico && (
+                <span className="text-xs font-semibold text-red-600 bg-red-100 dark:bg-red-900 px-2 py-1 rounded">Menos Vantajoso</span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -354,21 +522,90 @@ export function GraficoDashboardComparativo({
           </CardContent>
         </Card>
 
-        {/* Card: Economia */}
-        <Card>
+        {/* Card: Diferença e Insights */}
+        <Card className="border-2 border-muted">
           <CardHeader className="pb-3">
-            <CardDescription>Economia vs {stats.piorRegime.nome}</CardDescription>
-            <CardTitle className="text-2xl text-green-600">
+            <CardDescription className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Diferença entre Regimes
+            </CardDescription>
+            <CardTitle className={`text-2xl ${
+              stats.economia > 0 
+                ? stats.melhorRegime.nome === 'Lucro Real' 
+                  ? 'text-blue-600' 
+                  : 'text-green-600'
+                : 'text-red-500'
+            }`}>
               {formatarMoedaTooltip(stats.economia)}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">
-              {stats.economiaPercentual.toFixed(1)}% menos impostos
+              {stats.economia > 0 
+                ? `${stats.melhorRegime.nome} economiza ${stats.economiaPercentual.toFixed(1)}%`
+                : 'Regimes equivalentes'
+              }
             </p>
           </CardContent>
         </Card>
+        
+        {/* Card: Receita Total (movido para 4ª posição) */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>Receita Total</CardDescription>
+            <CardTitle className="text-2xl text-muted-foreground">
+              {formatarMoedaTooltip(stats.totalReceita)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Base de cálculo</p>
+          </CardContent>
+        </Card>
       </div>
+      
+      {/* Card de Insights Inteligentes */}
+      {stats.economia > 0 && (
+        <Card className="col-span-full bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-950/20 dark:to-green-950/20 border-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span className="text-2xl">💡</span>
+              Insight do Regime Mais Vantajoso
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <p className="text-base leading-relaxed">
+                <strong className="text-primary">{stats.melhorRegime.nome}</strong> é o regime mais econômico para esta empresa. 
+                Comparado ao <strong>{stats.piorRegime.nome}</strong>, você economiza <strong className="text-green-600">{formatarMoedaTooltip(stats.economia)}</strong> em impostos, 
+                o que representa uma redução de <strong className="text-green-600">{stats.economiaPercentual.toFixed(1)}%</strong> na carga tributária.
+              </p>
+              
+              {stats.totalReceita > 0 && (
+                <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Carga Tributária - {stats.melhorRegime.nome}</p>
+                    <p className="text-lg font-semibold text-green-600">
+                      {((stats.melhorRegime.total / stats.totalReceita) * 100).toFixed(2)}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Carga Tributária - {stats.piorRegime.nome}</p>
+                    <p className="text-lg font-semibold text-red-600">
+                      {((stats.piorRegime.total / stats.totalReceita) * 100).toFixed(2)}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Redução de Carga</p>
+                    <p className="text-lg font-semibold text-blue-600">
+                      {(((stats.piorRegime.total - stats.melhorRegime.total) / stats.totalReceita) * 100).toFixed(2)}%
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Card do Gráfico */}
       <Card className="col-span-full">
@@ -837,7 +1074,13 @@ export function GraficoDashboardComparativo({
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-background">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">
-            Detalhamento de Impostos - {regimeSelecionado === 'lucro_real' ? 'Lucro Real' : 'Lucro Presumido'}
+            Detalhamento de Impostos - {
+              regimeSelecionado === 'lucro_real' 
+                ? 'Lucro Real' 
+                : regimeSelecionado === 'lucro_presumido'
+                ? 'Lucro Presumido'
+                : 'Simples Nacional'
+            }
           </DialogTitle>
           <DialogDescription>
             Valores detalhados por imposto em cada mês do período analisado

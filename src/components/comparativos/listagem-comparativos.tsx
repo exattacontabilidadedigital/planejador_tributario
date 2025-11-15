@@ -47,9 +47,22 @@ export function ListagemComparativos({
   const [expandido, setExpandido] = useState<string | null>(null)
 
   // Filtrar dados da empresa e ano
-  const dadosComparativos = obterDadosPorEmpresa(empresaId).filter(
+  const todosDados = obterDadosPorEmpresa(empresaId)
+  console.log('🔍 [LISTAGEM] Todos os dados da empresa:', {
+    empresaId,
+    totalDados: todosDados.length,
+    dados: todosDados
+  })
+  
+  const dadosComparativos = todosDados.filter(
     dado => dado.ano === ano
   )
+  
+  console.log('🔍 [LISTAGEM] Dados filtrados por ano:', {
+    ano,
+    dadosFiltrados: dadosComparativos.length,
+    dados: dadosComparativos
+  })
 
   const formatarMoeda = (valor: number) => {
     return valor.toLocaleString('pt-BR', {

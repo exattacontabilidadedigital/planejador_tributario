@@ -4,6 +4,7 @@ import { use, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useEmpresas } from "@/hooks/use-empresas"
 import { useCenarios } from "@/hooks/use-cenarios"
+import { useCenariosStore } from "@/stores/cenarios-store"
 import { useTaxStore } from "@/hooks/use-tax-store"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ArrowLeft, Save } from "lucide-react"
+import { ArrowLeft, Save, Loader2 } from "lucide-react"
 import type { PeriodoCenario, TipoPeriodo } from "@/types/cenario"
 import { useToast } from "@/hooks/use-toast"
 
@@ -36,6 +37,7 @@ export default function NovoCenarioPage({
   const { toast } = useToast()
   const { getEmpresa } = useEmpresas()
   const { addCenario } = useCenarios(id)
+  const { loadingStates, error: storeError } = useCenariosStore()
   const { config } = useTaxStore()
   
   const empresa = getEmpresa(id)
@@ -77,7 +79,8 @@ export default function NovoCenarioPage({
 
     switch (tipoPeriodo) {
       case "mensal":
-        periodo.mes = mes
+        // Converter mes (number) para string no formato "01"-"12"
+        periodo.mes = mes.toString().padStart(2, '0')
         periodo.inicio = new Date(ano, mes - 1, 1).toISOString()
         periodo.fim = new Date(ano, mes, 0).toISOString()
         break
@@ -163,37 +166,58 @@ export default function NovoCenarioPage({
     router.back()
   }
 
-  // Anos disponíveis (último ano até próximo ano)
+  // Anos disponíveis baseados no estado (evita hidratação mismatch)
+  const anoBase = ano || 2025
   const anosDisponiveis = Array.from(
     { length: 3 },
-    (_, i) => (mounted ? new Date().getFullYear() : 2025) - 1 + i
+    (_, i) => anoBase - 1 + i
   )
 
   return (
     <div className="container mx-auto py-8 max-w-2xl">
-      <Button
-        variant="ghost"
-        onClick={handleCancel}
-        className="mb-6 gap-2"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Voltar
-      </Button>
+      {!mounted ? (
+        // Skeleton/Loading state durante hidratação - mesma estrutura base
+        <>
+          <div className="mb-6 h-10" /> {/* Espaço para o botão */}
+          <Card>
+            <CardHeader>
+              <div className="h-7 bg-muted animate-pulse rounded mb-2" />
+              <div className="h-5 bg-muted animate-pulse rounded w-2/3" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="h-10 bg-muted animate-pulse rounded" />
+                <div className="h-10 bg-muted animate-pulse rounded" />
+                <div className="h-10 bg-muted animate-pulse rounded" />
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        <>
+          <Button
+            variant="ghost"
+            onClick={handleCancel}
+            className="mb-6 gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Voltar
+          </Button>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Novo Cenário - {empresa.nome}</CardTitle>
-          <CardDescription>
-            Crie um novo cenário de planejamento tributário
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Nome */}
-            <div className="space-y-2">
-              <Label htmlFor="nome">Nome do Cenário</Label>
-              <Input
-                id="nome"
+          <Card>
+            <CardHeader>
+              <CardTitle>Novo Cenário - {empresa.nome}</CardTitle>
+              <CardDescription>
+                Crie um novo cenário de planejamento tributário
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Nome */}
+                <div className="space-y-2">
+                  <Label htmlFor="nome">Nome do Cenário</Label>
+                  <Input
+                    id="nome"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 placeholder={`Ex: ${gerarNomeAutomatico()} (Gerado automaticamente se vazio)`}
@@ -343,17 +367,47 @@ export default function NovoCenarioPage({
 
             {/* Botões */}
             <div className="flex gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={handleCancel} className="flex-1">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleCancel} 
+                className="flex-1"
+                disabled={loadingStates.creating}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" className="flex-1 gap-2">
-                <Save className="h-4 w-4" />
-                Criar e Editar Configurações
+              <Button 
+                type="submit" 
+                className="flex-1 gap-2"
+                disabled={loadingStates.creating}
+              >
+                {loadingStates.creating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Criar e Editar Configurações
+                  </>
+                )}
               </Button>
             </div>
+            
+            {/* Mensagem de erro */}
+            {storeError && (
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <p className="text-sm text-destructive font-medium">
+                  {storeError}
+                </p>
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   )
 }

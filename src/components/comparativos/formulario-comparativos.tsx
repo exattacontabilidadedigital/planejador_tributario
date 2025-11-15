@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -13,11 +13,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useRegimesTributariosStore } from "@/stores/regimes-tributarios-store"
+import { CurrencyInput } from "@/components/common/currency-input"
 import type { FormularioDadosComparativos, RegimeTributario, DadosComparativoMensal } from "@/types/comparativo"
 import { MESES_ANO, REGIMES_TRIBUTARIOS } from "@/types/comparativo"
-import { Plus, Save, CheckCircle, Edit, X } from "lucide-react"
+import { Plus, Save, CheckCircle, Edit, X, TrendingUp, TrendingDown } from "lucide-react"
 
 interface FormularioComparativosProps {
   empresaId: string
@@ -41,44 +43,37 @@ export function FormularioComparativos({
     mes: '',
     ano: new Date().getFullYear(),
     regime: 'lucro_presumido',
-    receita: '',
-    icms: '',
-    pis: '',
-    cofins: '',
-    irpj: '',
-    csll: '',
-    iss: '',
-    outros: '',
+    receita: '0',
+    icms: '0',
+    pis: '0',
+    cofins: '0',
+    irpj: '0',
+    csll: '0',
+    iss: '0',
+    outros: '0',
     observacoes: '',
   })
 
   const [salvando, setSalvando] = useState(false)
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   // Preencher formulário quando em modo edição
   useEffect(() => {
     console.log('📝 useEffect disparado - modoEdicao:', modoEdicao, 'dadosIniciais:', dadosIniciais)
     
     if (modoEdicao && dadosIniciais) {
-      const formatarValorMoeda = (valor: number | undefined | null): string => {
-        const valorSeguro = typeof valor === 'number' ? valor : 0
-        return valorSeguro.toLocaleString('pt-BR', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        })
-      }
-
       const novoFormulario = {
         mes: dadosIniciais.mes || '',
         ano: dadosIniciais.ano || new Date().getFullYear(),
         regime: dadosIniciais.regime || 'lucro_presumido',
-        receita: formatarValorMoeda(dadosIniciais.receita),
-        icms: formatarValorMoeda(dadosIniciais.icms),
-        pis: formatarValorMoeda(dadosIniciais.pis),
-        cofins: formatarValorMoeda(dadosIniciais.cofins),
-        irpj: formatarValorMoeda(dadosIniciais.irpj),
-        csll: formatarValorMoeda(dadosIniciais.csll),
-        iss: formatarValorMoeda(dadosIniciais.iss),
-        outros: formatarValorMoeda(dadosIniciais.outros),
+        receita: (dadosIniciais.receita || 0).toString(),
+        icms: (dadosIniciais.icms || 0).toString(),
+        pis: (dadosIniciais.pis || 0).toString(),
+        cofins: (dadosIniciais.cofins || 0).toString(),
+        irpj: (dadosIniciais.irpj || 0).toString(),
+        csll: (dadosIniciais.csll || 0).toString(),
+        iss: (dadosIniciais.iss || 0).toString(),
+        outros: (dadosIniciais.outros || 0).toString(),
         observacoes: dadosIniciais.observacoes || '',
       }
       
@@ -94,26 +89,74 @@ export function FormularioComparativos({
     }))
   }
 
-  const formatarMoeda = (valor: string): string => {
-    if (!valor || valor.trim() === '') return '0,00'
-    const apenasNumeros = valor.replace(/\D/g, '')
-    if (!apenasNumeros) return '0,00'
-    const numero = parseInt(apenasNumeros) / 100
+  const handleMoedaChange = (campo: keyof FormularioDadosComparativos) => (valor: number) => {
+    setFormulario(prev => ({
+      ...prev,
+      [campo]: valor.toString()
+    }))
+  }
+  
+  // Helper para calcular diferenças entre valores originais e atuais (modo edição)
+  const calcularDiferenca = useMemo(() => {
+    if (!modoEdicao || !dadosIniciais) return {}
     
-    return numero.toLocaleString('pt-BR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+    const diferencas: Record<string, { original: number; atual: number; diferenca: number; percentual: number }> = {}
+    const camposMonetarios = ['receita', 'icms', 'pis', 'cofins', 'irpj', 'csll', 'iss', 'outros']
+    
+    camposMonetarios.forEach(campo => {
+      const original = (dadosIniciais as any)[campo] || 0
+      const atual = parseFloat((formulario as any)[campo] || '0')
+      const diferenca = atual - original
+      const percentual = original !== 0 ? ((diferenca / original) * 100) : 0
+      
+      if (Math.abs(diferenca) > 0.01) { // Diferença maior que 1 centavo
+        diferencas[campo] = { original, atual, diferenca, percentual }
+      }
     })
-  }
+    
+    return diferencas
+  }, [modoEdicao, dadosIniciais, formulario])
 
-  const handleMoedaChange = (campo: keyof FormularioDadosComparativos, valor: string) => {
-    const valorFormatado = formatarMoeda(valor)
-    handleInputChange(campo, valorFormatado)
-  }
-
-  const converterMoedaParaNumero = (valorFormatado: string): number => {
-    if (!valorFormatado || valorFormatado.trim() === '') return 0
-    return parseFloat(valorFormatado.replace(/\./g, '').replace(',', '.')) || 0
+  // Helper component usando CurrencyInput
+  const MoedaInputComDiff = ({ 
+    campo, 
+    label, 
+    obrigatorio = false 
+  }: { 
+    campo: keyof FormularioDadosComparativos
+    label: string
+    obrigatorio?: boolean
+  }) => {
+    const diff = calcularDiferenca[campo]
+    const valor = parseFloat((formulario as any)[campo] || '0')
+    
+    return (
+      <div className="space-y-2">
+        {diff && (
+          <div className="flex items-center justify-end mb-1">
+            <Badge 
+              variant={diff.diferenca > 0 ? "default" : "destructive"}
+              className="text-xs gap-1"
+            >
+              {diff.diferenca > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+              {diff.diferenca > 0 ? '+' : ''}{diff.diferenca.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <span className="text-[10px]">({diff.percentual > 0 ? '+' : ''}{diff.percentual.toFixed(1)}%)</span>
+            </Badge>
+          </div>
+        )}
+        <CurrencyInput
+          label={label}
+          value={valor}
+          onChange={handleMoedaChange(campo)}
+          required={obrigatorio}
+        />
+        {diff && (
+          <p className="text-xs text-muted-foreground">
+            Anterior: R$ {diff.original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+        )}
+      </div>
+    )
   }
 
   const validarFormulario = (): boolean => {
@@ -129,7 +172,7 @@ export function FormularioComparativos({
       return false
     }
 
-    const receitaNumero = converterMoedaParaNumero(formulario.receita)
+    const receitaNumero = parseFloat(formulario.receita || '0')
     
     if (!formulario.receita || receitaNumero <= 0) {
       console.log('❌ Validação falhou: receita inválida')
@@ -139,6 +182,44 @@ export function FormularioComparativos({
         variant: "destructive",
       })
       return false
+    }
+    
+    // VALIDAÇÃO: Receita realista (< R$ 1 trilhão)
+    if (receitaNumero > 1_000_000_000_000) {
+      console.log('❌ Validação falhou: receita muito alta')
+      toast({
+        title: "Receita inválida",
+        description: `Receita de R$ ${(receitaNumero / 1_000_000_000).toFixed(2)} bilhões parece irreal. Verifique o valor.`,
+        variant: "destructive",
+      })
+      return false
+    }
+    
+    // VALIDAÇÃO: Total de impostos não pode exceder receita
+    const totalImpostos = 
+      parseFloat(formulario.icms || '0') +
+      parseFloat(formulario.pis || '0') +
+      parseFloat(formulario.cofins || '0') +
+      parseFloat(formulario.irpj || '0') +
+      parseFloat(formulario.csll || '0') +
+      parseFloat(formulario.iss || '0') +
+      parseFloat(formulario.outros || '0')
+    
+    if (totalImpostos > receitaNumero) {
+      const cargaTributaria = ((totalImpostos / receitaNumero) * 100).toFixed(2)
+      console.log('❌ Validação falhou: impostos > receita')
+      toast({
+        title: "Impostos excedem receita",
+        description: `Total de impostos (R$ ${totalImpostos.toLocaleString('pt-BR')}) excede a receita (R$ ${receitaNumero.toLocaleString('pt-BR')}). Carga tributária: ${cargaTributaria}%`,
+        variant: "destructive",
+      })
+      return false
+    }
+    
+    // ALERTA: Carga tributária muito alta (> 80%)
+    const cargaTributaria = (totalImpostos / receitaNumero) * 100
+    if (cargaTributaria > 80) {
+      console.warn(`⚠️ Carga tributária alta: ${cargaTributaria.toFixed(2)}%`)
     }
 
     console.log('✅ Formulário válido')
@@ -159,19 +240,58 @@ export function FormularioComparativos({
     setSalvando(true)
 
     try {
+      // VERIFICAÇÃO DE DUPLICATA CLIENT-SIDE (só para novos registros)
+      if (!modoEdicao) {
+        const { dadosComparativos } = useRegimesTributariosStore.getState()
+        const duplicado = dadosComparativos.find(
+          (dado) =>
+            dado.empresaId === empresaId &&
+            dado.mes === formulario.mes &&
+            dado.ano === formulario.ano &&
+            dado.regime === formulario.regime
+        )
+        
+        if (duplicado) {
+          const nomesMeses: Record<string, string> = {
+            'jan': 'Janeiro', 'fev': 'Fevereiro', 'mar': 'Março',
+            'abr': 'Abril', 'mai': 'Maio', 'jun': 'Junho',
+            'jul': 'Julho', 'ago': 'Agosto', 'set': 'Setembro',
+            'out': 'Outubro', 'nov': 'Novembro', 'dez': 'Dezembro'
+          }
+          
+          const nomesRegimes: Record<string, string> = {
+            'lucro_real': 'Lucro Real',
+            'lucro_presumido': 'Lucro Presumido',
+            'simples_nacional': 'Simples Nacional'
+          }
+
+          const mesNome = nomesMeses[formulario.mes] || formulario.mes
+          const regimeNome = nomesRegimes[formulario.regime] || formulario.regime
+          
+          toast({
+            title: "Registro duplicado",
+            description: `Já existe um registro de ${regimeNome} para ${mesNome}/${formulario.ano}. Use a função de editar.`,
+            variant: "destructive",
+          })
+          
+          setSalvando(false)
+          return
+        }
+      }
+      
       const dadosParaSalvar = {
         empresaId,
         mes: formulario.mes,
         ano: formulario.ano,
         regime: formulario.regime,
-        receita: converterMoedaParaNumero(formulario.receita),
-        icms: converterMoedaParaNumero(formulario.icms),
-        pis: converterMoedaParaNumero(formulario.pis),
-        cofins: converterMoedaParaNumero(formulario.cofins),
-        irpj: converterMoedaParaNumero(formulario.irpj),
-        csll: converterMoedaParaNumero(formulario.csll),
-        iss: converterMoedaParaNumero(formulario.iss),
-        outros: converterMoedaParaNumero(formulario.outros),
+        receita: parseFloat(formulario.receita || '0'),
+        icms: parseFloat(formulario.icms || '0'),
+        pis: parseFloat(formulario.pis || '0'),
+        cofins: parseFloat(formulario.cofins || '0'),
+        irpj: parseFloat(formulario.irpj || '0'),
+        csll: parseFloat(formulario.csll || '0'),
+        iss: parseFloat(formulario.iss || '0'),
+        outros: parseFloat(formulario.outros || '0'),
         observacoes: formulario.observacoes || undefined,
       }
 
@@ -208,14 +328,14 @@ export function FormularioComparativos({
           mes: '',
           ano: formulario.ano,
           regime: 'lucro_presumido',
-          receita: '',
-          icms: '',
-          pis: '',
-          cofins: '',
-          irpj: '',
-          csll: '',
-          iss: '',
-          outros: '',
+          receita: '0',
+          icms: '0',
+          pis: '0',
+          cofins: '0',
+          irpj: '0',
+          csll: '0',
+          iss: '0',
+          outros: '0',
           observacoes: '',
         })
       }
@@ -309,16 +429,11 @@ export function FormularioComparativos({
           </div>
 
           {/* Receita */}
-          <div className="space-y-2">
-            <Label htmlFor="receita">Receita Bruta *</Label>
-            <Input
-              id="receita"
-              placeholder="0,00"
-              value={formulario.receita}
-              onChange={(e) => handleMoedaChange('receita', e.target.value)}
-              className="text-right"
-            />
-          </div>
+          <MoedaInputComDiff
+            campo="receita"
+            label="Receita Bruta"
+            obrigatorio={true}
+          />
 
           {/* Impostos */}
           <div className="space-y-4">
@@ -334,86 +449,18 @@ export function FormularioComparativos({
             </div>
             
             {formulario.regime === 'simples_nacional' ? (
-              <div className="space-y-2">
-                <Label htmlFor="das">Valor do DAS</Label>
-                <Input
-                  id="das"
-                  placeholder="0,00"
-                  value={formulario.outros}
-                  onChange={(e) => handleMoedaChange('outros', e.target.value)}
-                  className="text-right"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Valor total do DAS que inclui: IRPJ, CSLL, PIS, COFINS, IPI, ICMS, ISS, CPP
-                </p>
-              </div>
+              <MoedaInputComDiff
+                campo="outros"
+                label="Valor do DAS"
+              />
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="icms">ICMS</Label>
-                  <Input
-                    id="icms"
-                    placeholder="0,00"
-                    value={formulario.icms}
-                    onChange={(e) => handleMoedaChange('icms', e.target.value)}
-                    className="text-right"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="pis">PIS</Label>
-                  <Input
-                    id="pis"
-                    placeholder="0,00"
-                    value={formulario.pis}
-                    onChange={(e) => handleMoedaChange('pis', e.target.value)}
-                    className="text-right"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="cofins">COFINS</Label>
-                  <Input
-                    id="cofins"
-                    placeholder="0,00"
-                    value={formulario.cofins}
-                    onChange={(e) => handleMoedaChange('cofins', e.target.value)}
-                    className="text-right"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="irpj">IRPJ</Label>
-                  <Input
-                    id="irpj"
-                    placeholder="0,00"
-                    value={formulario.irpj}
-                    onChange={(e) => handleMoedaChange('irpj', e.target.value)}
-                    className="text-right"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="csll">CSLL</Label>
-                  <Input
-                    id="csll"
-                    placeholder="0,00"
-                    value={formulario.csll}
-                    onChange={(e) => handleMoedaChange('csll', e.target.value)}
-                    className="text-right"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="iss">ISS</Label>
-                  <Input
-                    id="iss"
-                    placeholder="0,00"
-                    value={formulario.iss}
-                    onChange={(e) => handleMoedaChange('iss', e.target.value)}
-                    className="text-right"
-                  />
-                </div>
+                <MoedaInputComDiff campo="icms" label="ICMS" />
+                <MoedaInputComDiff campo="pis" label="PIS" />
+                <MoedaInputComDiff campo="cofins" label="COFINS" />
+                <MoedaInputComDiff campo="irpj" label="IRPJ" />
+                <MoedaInputComDiff campo="csll" label="CSLL" />
+                <MoedaInputComDiff campo="iss" label="ISS" />
               </div>
             )}
           </div>
@@ -421,16 +468,7 @@ export function FormularioComparativos({
           {/* Outros impostos e observações */}
           {formulario.regime !== 'simples_nacional' && (
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="outros">Outros Impostos</Label>
-                <Input
-                  id="outros"
-                  placeholder="0,00"
-                  value={formulario.outros}
-                  onChange={(e) => handleMoedaChange('outros', e.target.value)}
-                  className="text-right"
-                />
-              </div>
+              <MoedaInputComDiff campo="outros" label="Outros Impostos" />
             </div>
           )}
 

@@ -28,16 +28,46 @@ export class ComparativosAnaliseServiceCompleto {
    */
   static async criarComparativo(config: ConfigComparativo): Promise<ComparativoCompleto | null> {
     try {
-      console.log('🔄 Iniciando criação de comparativo:', config.nome)
+      console.log('\n🆕 ══════════════════════════════════════════════════════════')
+      console.log('🆕 [CRIAR] Iniciando NOVA análise comparativa')
+      console.log('🆕 [CRIAR] Nome:', config.nome)
+      console.log('🆕 [CRIAR] Ano:', config.ano)
+      console.log('🆕 [CRIAR] Tipo:', config.tipo)
+      console.log('🆕 [CRIAR] Empresa ID:', config.empresaId)
+      console.log('🆕 ══════════════════════════════════════════════════════════\n')
 
       // 1. Buscar dados de cada regime configurado
       const dadosRegimes = await this.buscarDadosRegimes(config)
       
+      console.log('\n📊 [CRIAR] Dados buscados:', {
+        quantidadeRegimes: Object.keys(dadosRegimes).length,
+        regimes: Object.keys(dadosRegimes)
+      })
+      
       // 2. Processar e agregar dados
       const resultados = this.processarResultados(dadosRegimes, config)
       
+      console.log('\n🔄 [CRIAR] Resultados processados:', {
+        quantidadeRegimes: Object.keys(resultados).length,
+        regimes: Object.keys(resultados),
+        detalhes: Object.entries(resultados).map(([key, r]) => ({
+          chave: key,
+          regime: r.regime,
+          receita: r.receitaTotal,
+          impostos: r.totalImpostos,
+          meses: r.dadosMensais?.length
+        }))
+      })
+      
       // 3. Realizar análise comparativa completa
       const analise = this.analisarComparativo(resultados, config)
+      
+      console.log('\n🧮 [CRIAR] Análise comparativa gerada:', {
+        vencedor: analise.vencedor?.regime,
+        economia: analise.vencedor?.economia,
+        insights: analise.insights?.length,
+        regimesAnalisados: analise.comparacao ? Object.keys(analise.comparacao.regimes).length : 0
+      })
       
       // 4. Salvar no banco de dados
       const comparativo = await this.salvarComparativo(config, analise)
@@ -72,6 +102,14 @@ export class ComparativosAnaliseServiceCompleto {
         throw new Error('Comparativo não encontrado')
       }
       
+      console.log('📦 [ATUALIZAR] Comparativo do banco:', {
+        id: comparativo.id,
+        empresa_id: comparativo.empresa_id,
+        nome: comparativo.nome,
+        temConfiguracao: !!comparativo.configuracao,
+        tipoConfiguracao: typeof comparativo.configuracao
+      })
+      
       // 2. Extrair configuração original
       let config: ConfigComparativo | null = null
       
@@ -101,6 +139,21 @@ export class ComparativosAnaliseServiceCompleto {
       }
       
       console.log('📋 Config recuperada:', config)
+      console.log('🔍 [ATUALIZAR] Configuração detalhada:', {
+        empresaIdNaConfig: config.empresaId,
+        empresaIdNoComparativo: comparativo.empresa_id,
+        saoIguais: config.empresaId === comparativo.empresa_id,
+        ano: config.ano,
+        mesesSelecionados: config.mesesSelecionados,
+        lucroReal: config.lucroReal,
+        dadosManuais: config.dadosManuais
+      })
+      
+      // 🔥 CORREÇÃO: Garantir que usamos o empresa_id do registro, não da config
+      if (!config.empresaId || config.empresaId !== comparativo.empresa_id) {
+        console.warn('⚠️ [ATUALIZAR] empresaId da config difere do registro! Corrigindo...')
+        config.empresaId = comparativo.empresa_id
+      }
       
       // 3. Buscar dados ATUALIZADOS do banco
       const dadosRegimes = await this.buscarDadosRegimes(config)
@@ -145,6 +198,15 @@ export class ComparativosAnaliseServiceCompleto {
    */
   private static async buscarDadosRegimes(config: ConfigComparativo): Promise<Map<string, any[]>> {
     const dadosRegimes = new Map<string, any[]>()
+
+    console.log('🔍 [BUSCAR DADOS] Iniciando busca com config:', {
+      empresaId: config.empresaId,
+      ano: config.ano,
+      mesesSelecionados: config.mesesSelecionados,
+      incluirLucroReal: config.lucroReal?.incluir,
+      incluirLucroPresumido: config.dadosManuais?.lucroPresumido?.incluir,
+      incluirSimplesNacional: config.dadosManuais?.simplesNacional?.incluir
+    })
 
     // Validar estrutura de config
     if (!config.lucroReal) {
@@ -497,15 +559,27 @@ export class ComparativosAnaliseServiceCompleto {
     
     if (data && data.length > 0) {
       data.forEach((d, i) => {
-        console.log(`\n   ${i + 1}. Mês ${d.mes}:`)
-        console.log(`      • ID: ${d.id}`)
-        console.log(`      • Receita: R$ ${(d.receita || 0).toLocaleString('pt-BR')}`)
-        console.log(`      • Total Impostos: R$ ${(d.total_impostos || 0).toLocaleString('pt-BR')}`)
-        console.log(`      • Tem impostos_detalhados?`, !!d.impostos_detalhados)
+        // Calcular total de impostos manualmente
+        const totalImpostos = (parseFloat(d.icms) || 0) + 
+                              (parseFloat(d.pis) || 0) + 
+                              (parseFloat(d.cofins) || 0) + 
+                              (parseFloat(d.irpj) || 0) + 
+                              (parseFloat(d.csll) || 0) + 
+                              (parseFloat(d.iss) || 0) + 
+                              (parseFloat(d.outros) || 0)
         
-        if (d.total_impostos === 0 || d.total_impostos === null) {
-          console.log(`      ⚠️  TOTAL IMPOSTOS ZERADO OU NULO!`)
-        }
+        console.log(`\n   ${i + 1}. Mês ${d.mes} (Ano ${d.ano}):`)
+        console.log(`      • ID: ${d.id}`)
+        console.log(`      • Regime: ${d.regime}`)
+        console.log(`      • Receita: R$ ${parseFloat(d.receita || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+        console.log(`      • ICMS: R$ ${parseFloat(d.icms || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+        console.log(`      • PIS: R$ ${parseFloat(d.pis || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+        console.log(`      • COFINS: R$ ${parseFloat(d.cofins || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+        console.log(`      • IRPJ: R$ ${parseFloat(d.irpj || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+        console.log(`      • CSLL: R$ ${parseFloat(d.csll || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+        console.log(`      • ISS: R$ ${parseFloat(d.iss || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+        console.log(`      • Outros: R$ ${parseFloat(d.outros || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+        console.log(`      • Total Calculado: R$ ${totalImpostos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
       })
     } else {
       console.log(`   ⚠️  NENHUM REGISTRO ENCONTRADO!`)
@@ -590,7 +664,13 @@ export class ComparativosAnaliseServiceCompleto {
       const impostos = this.extrairImpostos(dado)
       const totalImpostos = this.calcularTotalImpostos(impostos)
       
+      // ✅ USAR O REGIME DO BANCO DE DADOS se disponível, senão usar o parâmetro
+      const regimeDado = dado.regime || regime
+      
       console.log(`   📅 Mês ${dado.mes}:`)
+      console.log(`      Regime (banco): ${dado.regime}`)
+      console.log(`      Regime (parâmetro): ${regime}`)
+      console.log(`      Regime (escolhido): ${regimeDado}`)
       console.log(`      Receita: R$ ${receita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
       console.log(`      Impostos detalhados:`, impostos)
       console.log(`      Total Impostos: R$ ${totalImpostos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
@@ -598,11 +678,14 @@ export class ComparativosAnaliseServiceCompleto {
       return {
         mes: this.formatarMes(dado.mes),
         ano: dado.ano,
+        regime: regimeDado, // ✅ PRIORIZAR O REGIME DO BANCO DE DADOS
         receita,
         impostos,
         totalImpostos,
+        lucro: 0, // Calculado depois
         lucroLiquido: 0, // Calculado depois
-        cargaTributaria: 0 // Calculado depois
+        cargaTributaria: 0, // Calculado depois
+        estimado: false // Dados reais, não estimados
       }
     })
 
@@ -623,8 +706,10 @@ export class ComparativosAnaliseServiceCompleto {
 
     // Atualizar lucro líquido e carga nos dados mensais
     dadosMensais.forEach(dado => {
-      dado.lucroLiquido = dado.receita - dado.totalImpostos
-      dado.cargaTributaria = dado.receita > 0 ? (dado.totalImpostos / dado.receita) * 100 : 0
+      const totalImp = dado.totalImpostos || 0
+      dado.lucro = dado.receita - totalImp
+      dado.lucroLiquido = dado.receita - totalImp // Alias
+      dado.cargaTributaria = dado.receita > 0 ? (totalImp / dado.receita) * 100 : 0
     })
 
     return {
@@ -649,7 +734,7 @@ export class ComparativosAnaliseServiceCompleto {
   private static analisarComparativo(
     resultados: Record<string, ResultadoRegime>,
     config: ConfigComparativo
-  ): AnaliseComparativa {
+  ): any {
     
     // Determinar vencedor
     const vencedor = this.determinarVencedor(resultados)
@@ -667,7 +752,7 @@ export class ComparativosAnaliseServiceCompleto {
     const cobertura = this.analisarCobertura(resultados, config)
     
     // Gerar insights usando o motor inteligente
-    const analiseBase: AnaliseComparativa = {
+    const analiseBase: any = {
       vencedor,
       comparacao,
       variacaoLucroReal,
@@ -686,6 +771,19 @@ export class ComparativosAnaliseServiceCompleto {
     analiseBase.alertas = MotorInsights.gerarAlertas(resultados)
     analiseBase.breakEvenPoints = MotorInsights.calcularBreakEven(resultados)
     analiseBase.tendencias = MotorInsights.analisarTendencias(resultados)
+    
+    // 🔥 CRÍTICO: Adicionar regimes individuais diretamente no objeto
+    // Isso mantém compatibilidade com a UI e garante que os dados sejam acessíveis
+    Object.entries(resultados).forEach(([key, regime]) => {
+      analiseBase[key] = regime
+    })
+    
+    console.log('\n🔥 [ANÁLISE] Estrutura final com regimes individuais:', {
+      chavesFinais: Object.keys(analiseBase),
+      temComparacao: !!analiseBase.comparacao,
+      temVencedor: !!analiseBase.vencedor,
+      regimesIndividuais: Object.keys(resultados)
+    })
     
     return analiseBase
   }
@@ -873,9 +971,37 @@ export class ComparativosAnaliseServiceCompleto {
    */
   private static async salvarComparativo(
     config: ConfigComparativo,
-    analise: AnaliseComparativa
+    analise: any
   ): Promise<ComparativoCompleto | null> {
     const supabase = createClient()
+    
+    console.log('\n💾 [SALVAR] Iniciando salvamento do comparativo')
+    console.log('💾 [SALVAR] Nome:', config.nome)
+    console.log('💾 [SALVAR] Tipo:', config.tipo)
+    console.log('💾 [SALVAR] Ano:', config.ano)
+    console.log('💾 [SALVAR] Estrutura da análise:', {
+      temVencedor: !!analise.vencedor,
+      temComparacao: !!analise.comparacao,
+      temAnalisePorImposto: !!analise.analisePorImposto,
+      regimesNaComparacao: analise.comparacao ? Object.keys(analise.comparacao.regimes) : [],
+      quantidadeInsights: analise.insights?.length || 0,
+      quantidadeRecomendacoes: analise.recomendacoes?.length || 0
+    })
+    
+    // Log detalhado dos regimes
+    if (analise.comparacao?.regimes) {
+      console.log('💾 [SALVAR] Detalhes dos regimes:')
+      Object.entries(analise.comparacao.regimes).forEach(([key, regime]) => {
+        console.log(`   • ${key}:`, {
+          regime: regime.regime,
+          cenarioNome: regime.cenarioNome,
+          receitaTotal: regime.receitaTotal,
+          totalImpostos: regime.totalImpostos,
+          quantidadeMeses: regime.dadosMensais?.length || 0,
+          primeiroMes: regime.dadosMensais?.[0] || null
+        })
+      })
+    }
     
     const comparativo: Omit<ComparativoCompleto, 'id' | 'criadoEm' | 'atualizadoEm'> = {
       empresaId: config.empresaId,
@@ -890,6 +1016,16 @@ export class ComparativosAnaliseServiceCompleto {
       ultimaVisualizacao: new Date()
     }
 
+    console.log('💾 [SALVAR] Payload para insert:', {
+      empresa_id: comparativo.empresaId,
+      nome: comparativo.nome,
+      tipo: comparativo.tipo,
+      tamanhoResultados: JSON.stringify(comparativo.resultados).length,
+      chavesResultados: Object.keys(comparativo.resultados),
+      tipoResultadosAntesDeSalvar: typeof comparativo.resultados,
+      ehObjetoJavaScript: comparativo.resultados instanceof Object
+    })
+    
     const { data, error} = await supabase
       .from('comparativos_analise')
       .insert({
@@ -905,11 +1041,26 @@ export class ComparativosAnaliseServiceCompleto {
       })
       .select()
       .single()
+    
+    console.log('💾 [SALVAR] Resposta do Supabase após insert:', {
+      temData: !!data,
+      tipoResultadosDepoisDeSalvar: typeof data?.resultados,
+      ehStringAgora: typeof data?.resultados === 'string',
+      primeirasPalavras: typeof data?.resultados === 'string' ? data.resultados.substring(0, 100) : 'não é string'
+    })
 
     if (error) {
-      console.error('Erro ao salvar comparativo:', error)
+      console.error('❌ [SALVAR] Erro ao salvar comparativo:', error)
       throw error
     }
+    
+    console.log('✅ [SALVAR] Comparativo salvo com sucesso!')
+    console.log('✅ [SALVAR] ID gerado:', data?.id)
+    console.log('✅ [SALVAR] Resultados salvos:', {
+      temResultados: !!data?.resultados,
+      tipoResultados: typeof data?.resultados,
+      chavesResultados: data?.resultados ? Object.keys(data.resultados) : []
+    })
 
     return {
       ...comparativo,
@@ -930,25 +1081,33 @@ export class ComparativosAnaliseServiceCompleto {
 
   private static extrairReceita(dado: any): number {
     // Prioridade: receita_total > receita > receitaBrutaTotal (do configuracao)
-    return dado.receita_total || dado.receita || dado.configuracao?.receitaBruta || 0
+    const valor = dado.receita_total || dado.receita || dado.configuracao?.receitaBruta || 0
+    // Garantir conversão para número
+    return typeof valor === 'string' ? parseFloat(valor) : valor
   }
 
   private static extrairImpostos(dado: any): ImpostosPorTipo {
     const fonte = dado.impostos_detalhados ? 'LUCRO REAL (impostos_detalhados)' : 'DADOS MANUAIS (campos diretos)'
     const identificacao = dado.nome || dado.mes || 'desconhecido'
     
+    // Função auxiliar para garantir conversão de string para número
+    const toNumber = (val: any): number => {
+      if (val === null || val === undefined) return 0
+      return typeof val === 'string' ? parseFloat(val) || 0 : val || 0
+    }
+    
     // Para cenários de Lucro Real com impostos_detalhados (vem do buscarDadosLucroReal)
     if (dado.impostos_detalhados) {
       const impostos = {
-        icms: dado.impostos_detalhados.icms || 0,
-        pis: dado.impostos_detalhados.pis || 0,
-        cofins: dado.impostos_detalhados.cofins || 0,
-        irpj: dado.impostos_detalhados.irpj || 0,
-        csll: dado.impostos_detalhados.csll || 0,
-        iss: dado.impostos_detalhados.iss || 0,
-        cpp: dado.impostos_detalhados.cpp || 0,
-        das: dado.impostos_detalhados.das,
-        outros: dado.impostos_detalhados.outros || 0
+        icms: toNumber(dado.impostos_detalhados.icms),
+        pis: toNumber(dado.impostos_detalhados.pis),
+        cofins: toNumber(dado.impostos_detalhados.cofins),
+        irpj: toNumber(dado.impostos_detalhados.irpj),
+        csll: toNumber(dado.impostos_detalhados.csll),
+        iss: toNumber(dado.impostos_detalhados.iss),
+        cpp: toNumber(dado.impostos_detalhados.cpp),
+        das: toNumber(dado.impostos_detalhados.das),
+        outros: toNumber(dado.impostos_detalhados.outros)
       }
       
       console.log(`📦 [${fonte}] ${identificacao}:`, {
@@ -962,17 +1121,17 @@ export class ComparativosAnaliseServiceCompleto {
       return impostos
     }
 
-    // Para dados manuais
+    // Para dados manuais (dos_comparativos_mensais)
     const impostos = {
-      icms: dado.icms || 0,
-      pis: dado.pis || 0,
-      cofins: dado.cofins || 0,
-      irpj: dado.irpj || 0,
-      csll: dado.csll || 0,
-      iss: dado.iss || 0,
-      cpp: dado.cpp || 0,
-      das: dado.das,
-      outros: dado.outros || 0
+      icms: toNumber(dado.icms),
+      pis: toNumber(dado.pis),
+      cofins: toNumber(dado.cofins),
+      irpj: toNumber(dado.irpj),
+      csll: toNumber(dado.csll),
+      iss: toNumber(dado.iss),
+      cpp: toNumber(dado.cpp),
+      das: toNumber(dado.das),
+      outros: toNumber(dado.outros)
     }
     
     console.log(`📦 [${fonte}] ${identificacao}:`, {
@@ -980,7 +1139,10 @@ export class ComparativosAnaliseServiceCompleto {
       pis: impostos.pis.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
       cofins: impostos.cofins.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
       irpj: impostos.irpj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-      csll: impostos.csll.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+      csll: impostos.csll.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      iss: impostos.iss.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      outros: impostos.outros.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      total: Object.values(impostos).reduce((sum, val) => sum + (val || 0), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
     })
     
     return impostos

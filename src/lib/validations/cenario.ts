@@ -11,7 +11,7 @@ const PeriodoSchema = z.object({
   inicio: z.string(),
   fim: z.string(),
   ano: z.number().int().min(2020).max(2030),
-  mes: z.number().int().min(1).max(12).optional(),
+  mes: z.string().regex(/^(0[1-9]|1[0-2])$/).optional(), // "01"-"12" formato string
   trimestre: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
 }).refine((data) => {
   // Validar que data fim é depois da data início

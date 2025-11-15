@@ -11,7 +11,7 @@ export interface PeriodoCenario {
   tipo: TipoPeriodo
   inicio: string // ISO date string
   fim: string // ISO date string
-  mes?: number // 1-12 (para tipo mensal)
+  mes?: string // "01"-"12" (para tipo mensal) - formato string para compatibilidade com schema
   ano: number
   trimestre?: 1 | 2 | 3 | 4 // para tipo trimestral
 }

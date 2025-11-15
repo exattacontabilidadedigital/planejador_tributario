@@ -153,10 +153,11 @@ export function useRelatoriosSimples(empresaId?: string) {
 
           const receita = configuracao.receitaBruta || 0
           
-          // Tentar extrair mês de diferentes fontes
+          // Tentar extrair mês de diferentes fontes (convertendo string para number se necessário)
           let mesReferencia = cenario.mes
           if (!mesReferencia && cenario.periodo?.mes) {
-            mesReferencia = cenario.periodo.mes
+            // Converter string "01"-"12" para number 1-12
+            mesReferencia = parseInt(cenario.periodo.mes, 10)
           }
           if (!mesReferencia && cenario.periodo?.inicio) {
             // Extrair mês da data de início

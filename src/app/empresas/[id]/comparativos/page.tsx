@@ -57,6 +57,7 @@ export default function ComparativosPage({
   // Hook para dados integrados
   const {
     resumoComparativoCompleto,
+    dadosOutrosRegimes,
     temDadosLucroReal,
     temDadosOutrosRegimes,
     temComparacao,
@@ -85,6 +86,43 @@ export default function ComparativosPage({
 
   // Anos disponíveis para seleção
   const anosDisponiveis = [2023, 2024, 2025, 2026]
+
+  // Função para obter informações dos regimes da tabela dados_comparativos_mensais
+  const obterInfoRegimeInserido = () => {
+    if (!temDadosOutrosRegimes || !dadosOutrosRegimes.length) {
+      return { nome: 'Regime', descricao: 'Adicione dados' }
+    }
+    
+    // Mapear nomes dos regimes (lê da coluna 'regime' da tabela)
+    const nomeRegimes: Record<string, string> = {
+      'lucro_presumido': 'Lucro Presumido', 
+      'simples_nacional': 'Simples Nacional'
+    }
+    
+    // Obter regimes únicos dos dados (direto da coluna 'regime')
+    const regimesUnicos = [...new Set(dadosOutrosRegimes.map(dado => dado.regime))]
+    
+    // Criar lista de nomes dos regimes encontrados
+    const nomesRegimes = regimesUnicos
+      .map(regime => nomeRegimes[regime] || regime)
+      .join(' + ')
+    
+    // Calcular total de impostos de TODOS os regimes
+    const totalImpostos = dadosOutrosRegimes.reduce((total, dado) => {
+      return total + (dado.icms + dado.pis + dado.cofins + dado.irpj + dado.csll + dado.iss + (dado.outros || 0))
+    }, 0)
+    
+    return {
+      nome: nomesRegimes,
+      descricao: `${new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 0,
+      }).format(totalImpostos)}`
+    }
+  }
+
+  const infoRegimeInserido = obterInfoRegimeInserido()
 
   // Funções para manipular edição e duplicação
   const handleEditarDado = (dados: DadosComparativoMensal) => {
@@ -325,7 +363,7 @@ export default function ComparativosPage({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Outros Regimes</CardTitle>
+            <CardTitle className="text-sm font-medium">{infoRegimeInserido.nome}</CardTitle>
             <Plus className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -333,7 +371,7 @@ export default function ComparativosPage({
               {temDadosOutrosRegimes ? '✓' : '○'}
             </div>
             <p className="text-xs text-muted-foreground">
-              {temDadosOutrosRegimes ? 'Dados inseridos' : 'Adicione dados'}
+              {infoRegimeInserido.descricao}
             </p>
           </CardContent>
         </Card>

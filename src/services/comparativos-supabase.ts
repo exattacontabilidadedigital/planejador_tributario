@@ -98,10 +98,12 @@ export class ComparativosSupabaseService {
 
   // Converter dados do Supabase para tipo local
   private fromSupabaseFormat(dados: DadosComparativoSupabase): DadosComparativoMensal {
-    return {
+    const mesConvertido = this.converterNumeroParaMes(dados.mes)
+    
+    const resultado = {
       id: dados.id,
       empresaId: dados.empresa_id,
-      mes: this.converterNumeroParaMes(dados.mes),
+      mes: mesConvertido,
       ano: dados.ano,
       regime: dados.regime as any,
       receita: dados.receita,
@@ -116,6 +118,23 @@ export class ComparativosSupabaseService {
       criadoEm: new Date(dados.criado_em),
       atualizadoEm: new Date(dados.atualizado_em)
     }
+    
+    console.log('🔄 [SERVICE] fromSupabaseFormat:', {
+      entrada: {
+        id: dados.id,
+        empresa_id: dados.empresa_id,
+        mes: dados.mes,
+        criado_em: dados.criado_em
+      },
+      saida: {
+        id: resultado.id,
+        empresaId: resultado.empresaId,
+        mes: resultado.mes,
+        criadoEm: resultado.criadoEm
+      }
+    })
+    
+    return resultado
   }
 
   // Converter número do mês (01, 02, etc.) para nome
@@ -141,6 +160,8 @@ export class ComparativosSupabaseService {
   // Buscar todos os dados de uma empresa
   async obterDadosPorEmpresa(empresaId: string): Promise<DadosComparativoMensal[]> {
     try {
+      console.log('🔍 [SERVICE] obterDadosPorEmpresa - empresaId:', empresaId)
+      
       const { data, error } = await this.supabase
         .from('dados_comparativos_mensais')
         .select('*')
@@ -149,13 +170,25 @@ export class ComparativosSupabaseService {
         .order('mes', { ascending: false })
 
       if (error) {
-        console.error('Erro ao buscar dados comparativos:', error)
+        console.error('❌ [SERVICE] Erro ao buscar dados comparativos:', error)
         throw error
       }
 
-      return data?.map(item => this.fromSupabaseFormat(item)) || []
+      console.log('📦 [SERVICE] Dados brutos do Supabase:', {
+        total: data?.length || 0,
+        primeiroRegistro: data?.[0]
+      })
+
+      const dadosTransformados = data?.map(item => this.fromSupabaseFormat(item)) || []
+      
+      console.log('🔄 [SERVICE] Dados após transformação:', {
+        total: dadosTransformados.length,
+        primeiroRegistro: dadosTransformados[0]
+      })
+      
+      return dadosTransformados
     } catch (error) {
-      console.error('Erro no serviço de dados comparativos:', error)
+      console.error('❌ [SERVICE] Erro no serviço de dados comparativos:', error)
       return []
     }
   }

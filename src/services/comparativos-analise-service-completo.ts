@@ -991,7 +991,7 @@ export class ComparativosAnaliseServiceCompleto {
     // Log detalhado dos regimes
     if (analise.comparacao?.regimes) {
       console.log('💾 [SALVAR] Detalhes dos regimes:')
-      Object.entries(analise.comparacao.regimes).forEach(([key, regime]) => {
+      Object.entries(analise.comparacao.regimes).forEach(([key, regime]: [string, ResultadoRegime]) => {
         console.log(`   • ${key}:`, {
           regime: regime.regime,
           cenarioNome: regime.cenarioNome,

@@ -499,6 +499,6 @@ export function ListagemDadosComparativos({ empresaId, ano, onEditarDado, onDupl
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </>
   )
 }

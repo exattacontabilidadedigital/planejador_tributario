@@ -506,7 +506,178 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
         )}
       </div>
 
-      {/* Card de Destaque - Regime Mais Vantajoso */}
+      {/* Resumo Executivo - Visualização de Impacto */}
+      <Card className="border-2 border-primary bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5">
+        <CardHeader>
+          <CardTitle className="text-2xl flex items-center gap-2">
+            <TrendingUp className="h-7 w-7 text-primary" />
+            Resumo Executivo
+          </CardTitle>
+          <CardDescription className="text-base">
+            Análise do potencial de economia tributária
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Destaque Principal - Economia */}
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl p-6 shadow-lg">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium opacity-90 mb-2">Você pode economizar</p>
+                <p className="text-4xl md:text-5xl font-bold tracking-tight">
+                  {formatarMoeda(analise.economiaAnual || 0)}
+                </p>
+                <p className="text-sm mt-2 opacity-90">por ano mudando para {getNomeRegime(analise.regimeMaisVantajoso)}</p>
+              </div>
+              <div className="text-center md:text-right">
+                <div className="bg-white/20 backdrop-blur-sm rounded-lg px-6 py-4">
+                  <p className="text-sm font-medium opacity-90 mb-1">Potencial de economia</p>
+                  <p className="text-3xl font-bold">{formatarPercentual(analise.economiaPercentual || 0)}</p>
+                  <p className="text-xs mt-1 opacity-90">na sua tributação</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Comparação Visual em Semáforo */}
+          <div>
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Comparação entre Regimes Tributários
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {(() => {
+                // Calcular totais de impostos por regime
+                const regimesComTotais = [
+                  { 
+                    id: 'lucro_real', 
+                    nome: 'Lucro Real',
+                    total: lucroReal?.totalImpostos || 0,
+                    carga: lucroReal?.cargaTributaria || 0
+                  },
+                  { 
+                    id: 'lucro_presumido', 
+                    nome: 'Lucro Presumido',
+                    total: lucroPresumido?.totalImpostos || 0,
+                    carga: lucroPresumido?.cargaTributaria || 0
+                  },
+                  { 
+                    id: 'simples_nacional', 
+                    nome: 'Simples Nacional',
+                    total: simplesNacional?.totalImpostos || 0,
+                    carga: simplesNacional?.cargaTributaria || 0
+                  }
+                ].filter(r => r.total > 0).sort((a, b) => a.total - b.total)
+
+                return regimesComTotais.map((regime, index) => {
+                  const isMelhor = index === 0
+                  const isPior = index === regimesComTotais.length - 1
+                  const isIntermediario = !isMelhor && !isPior
+                  
+                  const corBorda = isMelhor ? 'border-green-500' : isIntermediario ? 'border-yellow-500' : 'border-red-500'
+                  const corBg = isMelhor ? 'bg-green-50 dark:bg-green-950/50' : isIntermediario ? 'bg-yellow-50 dark:bg-yellow-950/50' : 'bg-red-50 dark:bg-red-950/50'
+                  const icone = isMelhor ? '🟢' : isIntermediario ? '🟡' : '🔴'
+                  const label = isMelhor ? 'Melhor Opção' : isIntermediario ? 'Opção Intermediária' : 'Opção Mais Cara'
+                  
+                  return (
+                    <Card key={regime.id} className={`${corBorda} border-2 ${corBg} relative overflow-hidden`}>
+                      <div className="absolute top-2 right-2 text-3xl opacity-20">{icone}</div>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg flex items-center justify-between">
+                          <span>{regime.nome}</span>
+                          {isMelhor && <Trophy className="h-5 w-5 text-green-600" />}
+                        </CardTitle>
+                        <Badge 
+                          variant={isMelhor ? 'default' : 'secondary'} 
+                          className={`w-fit text-xs ${isMelhor ? 'bg-green-600' : isIntermediario ? 'bg-yellow-600' : 'bg-red-600'}`}
+                        >
+                          {label}
+                        </Badge>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total de Impostos/Ano</p>
+                          <p className="text-xl font-bold">{formatarMoeda(regime.total)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Carga Tributária</p>
+                          <p className="text-lg font-semibold flex items-center gap-2">
+                            <Percent className="h-4 w-4" />
+                            {formatarPercentual(regime.carga)}
+                          </p>
+                        </div>
+                        {!isMelhor && (
+                          <div className="pt-2 border-t">
+                            <p className="text-xs text-muted-foreground">A mais que a melhor opção</p>
+                            <p className="text-sm font-semibold text-red-600">
+                              +{formatarMoeda(regime.total - regimesComTotais[0].total)}
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )
+                })
+              })()}
+            </div>
+          </div>
+
+          {/* Métricas Principais em Cards Compactos */}
+          <div>
+            <h3 className="font-semibold mb-4">Indicadores Principais</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Card className="bg-muted/50">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">Economia Anual</p>
+                  <p className="text-lg font-bold text-green-600">{formatarMoeda(analise.economiaAnual || 0)}</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-muted/50">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">Economia %</p>
+                  <p className="text-lg font-bold text-green-600">{formatarPercentual(analise.economiaPercentual || 0)}</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-muted/50">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">Diferença Maior-Menor</p>
+                  <p className="text-lg font-bold">{formatarMoeda(analise.diferencaMaiorMenor || 0)}</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-muted/50">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">Regime Recomendado</p>
+                  <Badge variant="default" className="text-xs">
+                    {getNomeRegime(analise.regimeMaisVantajoso)}
+                  </Badge>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Indicador de Urgência */}
+          {analise.economiaPercentual > 10 && (
+            <div className="bg-amber-50 dark:bg-amber-950/50 border-2 border-amber-500 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="bg-amber-500 text-white rounded-full p-2 mt-0.5">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                    ⚡ Alto Potencial de Economia Identificado
+                  </h4>
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    Com uma economia potencial de <strong>{formatarPercentual(analise.economiaPercentual || 0)}</strong>, 
+                    recomendamos avaliar a mudança de regime tributário. Esta economia pode representar 
+                    <strong> {formatarMoeda(analise.economiaAnual || 0)}</strong> a mais no seu caixa anualmente.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Card de Destaque - Regime Mais Vantajoso (mantido para compatibilidade) */}
       <Card className="border-2 border-green-500 bg-green-50 dark:bg-green-950">
         <CardHeader>
           <div className="flex items-center justify-between">

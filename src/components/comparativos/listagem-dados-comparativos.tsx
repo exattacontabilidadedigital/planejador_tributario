@@ -271,8 +271,7 @@ export function ListagemDadosComparativos({ empresaId, ano, onEditarDado, onDupl
               Nenhum resultado encontrado para "{termoBusca}"
             </div>
           ) : (
-            <>
-              <div className="rounded-md border">
+            <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -402,6 +401,7 @@ export function ListagemDadosComparativos({ empresaId, ano, onEditarDado, onDupl
             </TableBody>
           </Table>
         </div>
+          )}
         
         {/* Controles de paginação */}
         {totalPaginas > 1 && (

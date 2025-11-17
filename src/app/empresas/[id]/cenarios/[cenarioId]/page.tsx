@@ -482,59 +482,6 @@ export default function EditarCenarioPage({
       throw error
     }
   }
-      const dadosAtualizacao: any = {
-        nome: nomeEditavel,
-        descricao: descricaoEditavel,
-        configuracao: config,
-        resultados: resultados, // ✅ INCLUIR RESULTADOS RECALCULADOS
-      }
-
-      // Se o nome mudou, tentar extrair o mês e atualizar
-      if (nomeEditavel !== cenario.nome) {
-        const mesExtraido = extrairMesDoNome(nomeEditavel)
-        if (mesExtraido) {
-          dadosAtualizacao.mes = mesExtraido
-          console.log(`🗓️ [CENÁRIO] Mês extraído do nome "${nomeEditavel}": ${mesExtraido}`)
-        }
-      }
-
-      // Primeiro salva as alterações
-      console.log('💾 [CENÁRIO] Salvando cenário com resultados atualizados...')
-      await updateCenario(cenarioId, dadosAtualizacao)
-      
-      // 💾 SALVAR MEMÓRIAS DE CÁLCULO NAS TABELAS
-      console.log('💾 [CENÁRIO] Salvando memórias de cálculo no banco...')
-      await MemoriasCalculoService.salvarTodasMemorias(
-        cenarioId,
-        memoriaICMS,
-        memoriaPISCOFINS,
-        memoriaIRPJCSLL
-      )
-      
-      // Depois aprova o cenário
-      console.log('✅ [CENÁRIO] Aprovando cenário...')
-      await aprovarCenario(cenarioId)
-      
-      // Força um refresh dos cenários para garantir que o status seja atualizado
-      await fetchCenarios(id)
-
-      setEditandoNome(false)
-
-      toast({
-        title: "Cenário aprovado!",
-        description: `${nomeEditavel} foi salvo e aprovado.`,
-      })
-
-      router.push(`/empresas/${id}/cenarios`)
-    } catch (error) {
-      console.error('Erro ao salvar e aprovar cenário:', error)
-      toast({
-        title: "Erro",
-        description: "Erro ao salvar e aprovar o cenário",
-        variant: "destructive",
-      })
-    }
-  }
 
   const getStatusBadge = () => {
     const styles = {

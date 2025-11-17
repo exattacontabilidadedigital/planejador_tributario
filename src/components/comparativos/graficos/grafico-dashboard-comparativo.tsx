@@ -112,7 +112,12 @@ export function GraficoDashboardComparativo({
       return mesA - mesB
     })
     
-    console.log('🔍 [DETALHAMENTO] Dados ordenados:', dadosOrdenados.map(d => ({ mes: d.mes, ano: d.ano })))
+    console.log('🔍 [DETALHAMENTO] Dados ordenados:', dadosOrdenados.map(d => ({ 
+      mes: d.mes, 
+      ano: d.ano, 
+      receita: d.receita,
+      totalImpostos: d.totalImpostos 
+    })))
     
     setDadosDetalhados(dadosOrdenados)
     setModalAberto(true)

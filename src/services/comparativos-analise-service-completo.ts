@@ -706,15 +706,16 @@ export class ComparativosAnaliseServiceCompleto {
     const mesesSelecionados = config.mesesSelecionados
     
     // Para dados manuais: usar campo mes
-    // Para cenários: gerar mês fictício baseado no índice
-    const mesesComDados = dadosValidos.map((d, idx) => 
-      ehDadoManual ? this.formatarMes(d.mes) : this.formatarMes(idx + 1)
-    )
+    // Para cenários: TAMBÉM usar campo mes se disponível (cenários têm mês definido)
+    const mesesComDados = dadosValidos
+      .filter(d => d.mes !== null && d.mes !== undefined)
+      .map(d => this.formatarMes(d.mes))
     const mesesSemDados = mesesSelecionados.filter(m => !mesesComDados.includes(m))
 
     console.log(`\n📊 [PROCESSAR REGIME] ${this.formatarRegime(regime)}${cenarioNome ? ` - ${cenarioNome}` : ''}`)
     console.log(`   Tipo: ${ehDadoManual ? 'DADOS MANUAIS' : 'CENÁRIOS CALCULADOS'}`)
     console.log(`   Dados recebidos: ${dados.length} registros (${dadosValidos.length} válidos)`)
+    console.log(`   Meses com dados:`, mesesComDados)
 
     // Agregar dados mensais
     const dadosMensais: DadosMensalRegime[] = dadosValidos.map((dado, idx) => {
@@ -725,11 +726,11 @@ export class ComparativosAnaliseServiceCompleto {
       // ✅ USAR O REGIME DO BANCO DE DADOS se disponível, senão usar o parâmetro
       const regimeDado = dado.regime || regime
       
-      // Para dados manuais: usar mes do dado
-      // Para cenários: usar índice + 1 como mês fictício
-      const mesFormatado = ehDadoManual ? this.formatarMes(dado.mes) : this.formatarMes(idx + 1)
+      // Sempre usar mes do dado quando disponível
+      const mesReal = dado.mes || (idx + 1)
+      const mesFormatado = this.formatarMes(mesReal)
       
-      console.log(`   📅 ${ehDadoManual ? `Mês ${dado.mes}` : `Cenário ${idx + 1}`}:`)
+      console.log(`   📅 Mês ${mesReal} (${mesFormatado}):`)
       console.log(`      Regime (banco): ${dado.regime}`)
       console.log(`      Regime (parâmetro): ${regime}`)
       console.log(`      Regime (escolhido): ${regimeDado}`)
@@ -738,7 +739,7 @@ export class ComparativosAnaliseServiceCompleto {
       console.log(`      Total Impostos: R$ ${totalImpostos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
       
       return {
-        mes: mesFormatado,
+        mes: typeof mesReal === 'string' ? parseInt(mesReal) : mesReal, // ✅ Garantir que mes seja numérico
         ano: dado.ano || config.ano,
         regime: regimeDado, // ✅ PRIORIZAR O REGIME DO BANCO DE DADOS
         receita,

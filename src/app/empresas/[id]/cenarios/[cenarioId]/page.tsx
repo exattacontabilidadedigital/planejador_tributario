@@ -23,6 +23,7 @@ import { MemoriaIRPJCSLLTable } from "@/components/memoria/memoria-irpj-csll-tab
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
+import { ModalEditarCenario } from "@/components/cenarios/modal-editar-cenario"
 
 export default function EditarCenarioPage({
   params,
@@ -52,6 +53,7 @@ export default function EditarCenarioPage({
   const [nomeEditavel, setNomeEditavel] = useState("")
   const [descricaoEditavel, setDescricaoEditavel] = useState("")
   const [loading, setLoading] = useState(true)
+  const [modalEditarAberto, setModalEditarAberto] = useState(false)
 
   // Effect para hidratação segura
   useEffect(() => {
@@ -364,6 +366,138 @@ export default function EditarCenarioPage({
         }
       }
 
+      // Atualiza o cenário
+      await updateCenario(cenarioId, dadosAtualizacao)
+      
+      // 💾 SALVAR MEMÓRIAS DE CÁLCULO NAS TABELAS
+      console.log('💾 [CENÁRIO] Salvando memórias de cálculo no banco...')
+      try {
+        await MemoriasCalculoService.salvarTodasMemorias(
+          cenarioId,
+          memoriaICMS,
+          memoriaPISCOFINS,
+          memoriaIRPJCSLL
+        )
+      } catch (error) {
+        console.error('⚠️ [CENÁRIO] Erro ao salvar memórias (continuando):', error)
+      }
+
+      // Aprovar o cenário
+      await aprovarCenario(cenarioId)
+
+      setEditandoNome(false)
+
+      toast({
+        title: "✅ Cenário aprovado!",
+        description: `${nomeEditavel} foi aprovado e está pronto para análise.`,
+      })
+
+      // Recarregar dados do cenário
+      await fetchCenarios(id)
+    } catch (error) {
+      console.error('Erro ao salvar e aprovar cenário:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar e aprovar o cenário",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSalvarEdicao = async (dados: any) => {
+    console.log('🔄 [MODAL] Salvando edição completa do cenário...')
+    console.log('📋 [MODAL] Dados recebidos:', dados)
+
+    try {
+      // 🔢 CALCULAR RESULTADOS COM BASE NA CONFIG ATUAL
+      const resultados = {
+        icms: {
+          totalDebitos: memoriaICMS.totalDebitos,
+          totalCreditos: memoriaICMS.totalCreditos,
+          icmsAPagar: memoriaICMS.icmsAPagar,
+        },
+        pisCofins: {
+          pisAPagar: memoriaPISCOFINS.pisAPagar,
+          cofinsAPagar: memoriaPISCOFINS.cofinsAPagar,
+          totalPISCOFINS: memoriaPISCOFINS.totalPISCOFINS,
+        },
+        irpjCsll: {
+          irpjBase: memoriaIRPJCSLL.irpjBase.valor,
+          irpjAdicional: memoriaIRPJCSLL.irpjAdicional.valor,
+          totalIRPJ: memoriaIRPJCSLL.totalIRPJ,
+          csll: memoriaIRPJCSLL.csll.valor,
+          totalIRPJCSLL: memoriaIRPJCSLL.totalIRPJ + memoriaIRPJCSLL.csll.valor,
+        },
+        dre: {
+          receitaBruta: dre.receitaBrutaVendas,
+          receitaLiquida: dre.receitaLiquida,
+          lucroLiquido: dre.lucroLiquido,
+        },
+        totalImpostos: 
+          memoriaICMS.icmsAPagar +
+          memoriaPISCOFINS.totalPISCOFINS +
+          memoriaIRPJCSLL.totalIRPJ +
+          memoriaIRPJCSLL.csll.valor,
+      }
+
+      // Atualizar cenário com novos dados
+      await updateCenario(cenarioId, {
+        ...dados,
+        resultados,
+      })
+
+      // Atualizar config local
+      updateConfig(dados.configuracao)
+      
+      // Atualizar estados locais
+      setNomeEditavel(dados.nome)
+      setDescricaoEditavel(dados.descricao || "")
+
+      // 💾 SALVAR MEMÓRIAS DE CÁLCULO
+      try {
+        await MemoriasCalculoService.salvarTodasMemorias(
+          cenarioId,
+          memoriaICMS,
+          memoriaPISCOFINS,
+          memoriaIRPJCSLL
+        )
+      } catch (error) {
+        console.error('⚠️ [MODAL] Erro ao salvar memórias (continuando):', error)
+      }
+
+      // Recarregar dados do cenário
+      await fetchCenarios(id)
+
+      toast({
+        title: "✅ Cenário atualizado!",
+        description: "Todas as alterações foram salvas com sucesso.",
+      })
+    } catch (error) {
+      console.error('Erro ao salvar edição:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar as alterações",
+        variant: "destructive",
+      })
+      throw error
+    }
+  }
+      const dadosAtualizacao: any = {
+        nome: nomeEditavel,
+        descricao: descricaoEditavel,
+        configuracao: config,
+        resultados: resultados, // ✅ INCLUIR RESULTADOS RECALCULADOS
+      }
+
+      // Se o nome mudou, tentar extrair o mês e atualizar
+      if (nomeEditavel !== cenario.nome) {
+        const mesExtraido = extrairMesDoNome(nomeEditavel)
+        if (mesExtraido) {
+          dadosAtualizacao.mes = mesExtraido
+          console.log(`🗓️ [CENÁRIO] Mês extraído do nome "${nomeEditavel}": ${mesExtraido}`)
+        }
+      }
+
       // Primeiro salva as alterações
       console.log('💾 [CENÁRIO] Salvando cenário com resultados atualizados...')
       await updateCenario(cenarioId, dadosAtualizacao)
@@ -481,6 +615,14 @@ export default function EditarCenarioPage({
           </div>
           
           <div className="flex gap-2">
+            <Button 
+              onClick={() => setModalEditarAberto(true)} 
+              variant="outline" 
+              className="gap-2"
+            >
+              <Edit2 className="h-4 w-4" />
+              Editar Informações
+            </Button>
             <Button onClick={handleSalvar} variant="outline" className="gap-2">
               <Save className="h-4 w-4" />
               Salvar Rascunho
@@ -563,6 +705,14 @@ export default function EditarCenarioPage({
         </CardContent>
       </Card>
       </div>
+
+      {/* Modal de Edição */}
+      <ModalEditarCenario
+        open={modalEditarAberto}
+        onOpenChange={setModalEditarAberto}
+        cenario={cenario}
+        onSave={handleSalvarEdicao}
+      />
     </CenariosErrorBoundary>
   )
 }

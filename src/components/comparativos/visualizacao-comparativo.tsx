@@ -179,6 +179,7 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
     const consolidarDadosRegime = (nomeRegime: string) => {
       console.log(`🔧 [CONSOLIDAR] Buscando regime: "${nomeRegime}"`)
       console.log(`🔧 [CONSOLIDAR] Chaves disponíveis:`, Object.keys(regimes))
+      console.log(`🔧 [CONSOLIDAR] Objeto regimes COMPLETO:`, regimes)
       
       // Buscar por chave direta primeiro
       const dadoDireto = regimes[nomeRegime] || regimes[nomeRegime.replace('_', '')] || regimes[nomeRegime.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())]
@@ -287,7 +288,13 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
       console.log(`✨ [CONSOLIDAÇÃO] ${nomeRegime}:`, {
         cenarios: chavesCenarios.length,
         meses: todosOsDadosMensais.length,
-        consolidado: regimeConsolidado
+        consolidado: regimeConsolidado,
+        dadosMensaisDetalhado: todosOsDadosMensais.map(d => ({
+          mes: d.mes,
+          ano: d.ano,
+          totalImpostos: d.totalImpostos,
+          receita: d.receita
+        }))
       })
       
       return regimeConsolidado

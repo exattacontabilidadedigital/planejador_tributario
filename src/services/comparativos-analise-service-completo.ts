@@ -324,12 +324,14 @@ export class ComparativosAnaliseServiceCompleto {
 
     // 4. Processar cada cenário seguindo estrutura da DRE
     const cenariosFormatados = data.map(c => {
-      const mes = c.mes || (c.data_inicio ? new Date(c.data_inicio).getMonth() + 1 : null)
+      // ✅ Extrair mes do configuracao.periodo.mes (onde está armazenado nos cenários)
       const config = c.configuracao || {}
+      const mes = c.mes || config.periodo?.mes || (c.data_inicio ? new Date(c.data_inicio).getMonth() + 1 : null)
       const resultados = c.resultados || {}
       
-      console.log(`\n� [DRE] Processando cenário: ${c.nome}`)
+      console.log(`\n📊 [DRE] Processando cenário: ${c.nome}`)
       console.log(`   ID: ${c.id}`)
+      console.log(`   Mês extraído: ${mes} (origem: ${c.mes ? 'c.mes' : config.periodo?.mes ? 'config.periodo.mes' : 'data_inicio'})`)
       
       // ═══════════════════════════════════════════════════════════════
       // ETAPA 1: RECEITA BRUTA E DEDUÇÕES (DRE)
@@ -415,8 +417,8 @@ export class ComparativosAnaliseServiceCompleto {
       console.log(`   📅 Período de Apuração: ${periodoPagamento.toUpperCase()}`)
       console.log(`   💰 Limite IRPJ Adicional: R$ ${limiteIRPJ.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
       
-      // IRPJ Base (15%)
-      const irpjBase = lucroRealBase * 0.15
+      // ✅ IRPJ Base (15%) - Se lucro negativo, não há imposto a pagar
+      const irpjBase = Math.max(0, lucroRealBase * 0.15)
       
       // IRPJ Adicional (10% sobre o que exceder o limite do período)
       const baseAdicional = Math.max(0, lucroRealBase - limiteIRPJ)
@@ -425,8 +427,8 @@ export class ComparativosAnaliseServiceCompleto {
       // Total IRPJ
       const irpjAPagar = irpjBase + irpjAdicional
       
-      // CSLL (9%)
-      const csllAPagar = lucroRealBase * 0.09
+      // ✅ CSLL (9%) - Se lucro negativo, não há imposto a pagar
+      const csllAPagar = Math.max(0, lucroRealBase * 0.09)
       
       console.log(`   💰 IRPJ BASE (15%): R$ ${irpjBase.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
       console.log(`   💰 IRPJ ADICIONAL (10% sobre R$ ${baseAdicional.toLocaleString('pt-BR')}): R$ ${irpjAdicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
@@ -443,15 +445,16 @@ export class ComparativosAnaliseServiceCompleto {
       console.log(`   ─────────────────────────────────────`)
       
       // Montar objeto de impostos detalhados
+      // ✅ Garantir que todos os impostos sejam não negativos
       const impostos = {
-        icms: icmsAPagar,
-        pis: pisAPagar,
-        cofins: cofinsAPagar,
-        irpj: irpjAPagar,
-        csll: csllAPagar,
-        iss: issAPagar,
-        cpp: resultados.cpp?.cppAPagar || resultados.cppAPagar || 0,
-        inss: resultados.inss?.inssAPagar || resultados.inssAPagar || 0
+        icms: Math.max(0, icmsAPagar),
+        pis: Math.max(0, pisAPagar),
+        cofins: Math.max(0, cofinsAPagar),
+        irpj: Math.max(0, irpjAPagar),
+        csll: Math.max(0, csllAPagar),
+        iss: Math.max(0, issAPagar),
+        cpp: Math.max(0, resultados.cpp?.cppAPagar || resultados.cppAPagar || 0),
+        inss: Math.max(0, resultados.inss?.inssAPagar || resultados.inssAPagar || 0)
       }
       
       const totalImpostos = Object.values(impostos).reduce((sum, val) => sum + (val || 0), 0)
@@ -600,12 +603,14 @@ export class ComparativosAnaliseServiceCompleto {
     // Processar Lucro Real (pode ter múltiplos cenários)
     const dadosLR = dadosRegimes.get('lucro_real')
     if (dadosLR && dadosLR.length > 0) {
-      const cenariosPorId = this.agruparCenariosPorId(dadosLR)
-      
-      cenariosPorId.forEach((dados, cenarioId) => {
-        const key = `lucro_real_${cenarioId}`
-        resultados[key] = this.processarRegime(dados, 'lucro_real', config, cenarioId)
+      // ✅ CORREÇÃO: Processar TODOS os cenários juntos, não separar por ID
+      // Cada cenário é um mês diferente, devem ser consolidados
+      console.log(`📊 [PROCESSAR RESULTADOS] Lucro Real - Total de cenários: ${dadosLR.length}`)
+      dadosLR.forEach((c, idx) => {
+        console.log(`   Cenário ${idx + 1}: ${c.nome} (ID: ${c.id}, Mês: ${c.mes})`)
       })
+      
+      resultados['lucro_real'] = this.processarRegime(dadosLR, 'lucro_real', config)
     }
 
     // Processar Lucro Presumido
@@ -650,10 +655,29 @@ export class ComparativosAnaliseServiceCompleto {
     cenarioId?: string
   ): ResultadoRegime {
     
-    // ✅ Filtrar dados com mes inválido
+    // 🔍 Determinar se são dados manuais ou calculados de cenários
+    // Dados de cenários (Lucro Real) NÃO têm campo "mes" - são agregados anuais/trimestrais
+    // Dados manuais (Simples/Presumido) PRECISAM ter campo "mes" válido
+    const primeiroRegistro = dados[0]
+    const ehDadoManual = primeiroRegistro && (
+      primeiroRegistro.regime_tributario || // Campo presente em dados manuais
+      primeiroRegistro.tipo === 'mensal'     // Tipo mensal = dado manual
+    )
+    
+    // ✅ Filtrar dados com mes inválido APENAS para dados manuais
     const dadosValidos = dados.filter(d => {
+      // Cenários calculados: não precisam validar mes
+      if (!ehDadoManual) {
+        return true
+      }
+      
+      // Dados manuais: precisam de mes válido
       if (d.mes === null || d.mes === undefined || d.mes === '') {
-        console.warn(`⚠️ Registro ignorado: mes inválido`, d)
+        console.warn(`⚠️ [DADO MANUAL] Registro ignorado: mes inválido`, {
+          regime: d.regime_tributario,
+          nome: d.nome,
+          mes: d.mes
+        })
         return false
       }
       return true
@@ -680,14 +704,20 @@ export class ComparativosAnaliseServiceCompleto {
     
     const cenarioNome = dadosValidos[0]?.nome || undefined
     const mesesSelecionados = config.mesesSelecionados
-    const mesesComDados = dadosValidos.map(d => this.formatarMes(d.mes))
+    
+    // Para dados manuais: usar campo mes
+    // Para cenários: gerar mês fictício baseado no índice
+    const mesesComDados = dadosValidos.map((d, idx) => 
+      ehDadoManual ? this.formatarMes(d.mes) : this.formatarMes(idx + 1)
+    )
     const mesesSemDados = mesesSelecionados.filter(m => !mesesComDados.includes(m))
 
     console.log(`\n📊 [PROCESSAR REGIME] ${this.formatarRegime(regime)}${cenarioNome ? ` - ${cenarioNome}` : ''}`)
+    console.log(`   Tipo: ${ehDadoManual ? 'DADOS MANUAIS' : 'CENÁRIOS CALCULADOS'}`)
     console.log(`   Dados recebidos: ${dados.length} registros (${dadosValidos.length} válidos)`)
 
     // Agregar dados mensais
-    const dadosMensais: DadosMensalRegime[] = dadosValidos.map(dado => {
+    const dadosMensais: DadosMensalRegime[] = dadosValidos.map((dado, idx) => {
       const receita = this.extrairReceita(dado)
       const impostos = this.extrairImpostos(dado)
       const totalImpostos = this.calcularTotalImpostos(impostos)
@@ -695,7 +725,11 @@ export class ComparativosAnaliseServiceCompleto {
       // ✅ USAR O REGIME DO BANCO DE DADOS se disponível, senão usar o parâmetro
       const regimeDado = dado.regime || regime
       
-      console.log(`   📅 Mês ${dado.mes}:`)
+      // Para dados manuais: usar mes do dado
+      // Para cenários: usar índice + 1 como mês fictício
+      const mesFormatado = ehDadoManual ? this.formatarMes(dado.mes) : this.formatarMes(idx + 1)
+      
+      console.log(`   📅 ${ehDadoManual ? `Mês ${dado.mes}` : `Cenário ${idx + 1}`}:`)
       console.log(`      Regime (banco): ${dado.regime}`)
       console.log(`      Regime (parâmetro): ${regime}`)
       console.log(`      Regime (escolhido): ${regimeDado}`)
@@ -704,8 +738,8 @@ export class ComparativosAnaliseServiceCompleto {
       console.log(`      Total Impostos: R$ ${totalImpostos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
       
       return {
-        mes: this.formatarMes(dado.mes),
-        ano: dado.ano,
+        mes: mesFormatado,
+        ano: dado.ano || config.ano,
         regime: regimeDado, // ✅ PRIORIZAR O REGIME DO BANCO DE DADOS
         receita,
         impostos,
@@ -1138,16 +1172,17 @@ export class ComparativosAnaliseServiceCompleto {
     
     // Para cenários de Lucro Real com impostos_detalhados (vem do buscarDadosLucroReal)
     if (dado.impostos_detalhados) {
+      // ✅ Impostos negativos = 0 (não há imposto a pagar)
       const impostos = {
-        icms: toNumber(dado.impostos_detalhados.icms),
-        pis: toNumber(dado.impostos_detalhados.pis),
-        cofins: toNumber(dado.impostos_detalhados.cofins),
-        irpj: toNumber(dado.impostos_detalhados.irpj),
-        csll: toNumber(dado.impostos_detalhados.csll),
-        iss: toNumber(dado.impostos_detalhados.iss),
-        cpp: toNumber(dado.impostos_detalhados.cpp),
-        das: toNumber(dado.impostos_detalhados.das),
-        outros: toNumber(dado.impostos_detalhados.outros)
+        icms: Math.max(0, toNumber(dado.impostos_detalhados.icms)),
+        pis: Math.max(0, toNumber(dado.impostos_detalhados.pis)),
+        cofins: Math.max(0, toNumber(dado.impostos_detalhados.cofins)),
+        irpj: Math.max(0, toNumber(dado.impostos_detalhados.irpj)),
+        csll: Math.max(0, toNumber(dado.impostos_detalhados.csll)),
+        iss: Math.max(0, toNumber(dado.impostos_detalhados.iss)),
+        cpp: Math.max(0, toNumber(dado.impostos_detalhados.cpp)),
+        das: Math.max(0, toNumber(dado.impostos_detalhados.das)),
+        outros: Math.max(0, toNumber(dado.impostos_detalhados.outros))
       }
       
       console.log(`📦 [${fonte}] ${identificacao}:`, {
@@ -1162,16 +1197,17 @@ export class ComparativosAnaliseServiceCompleto {
     }
 
     // Para dados manuais (dos_comparativos_mensais)
+    // ✅ Impostos negativos = 0 (não há imposto a pagar)
     const impostos = {
-      icms: toNumber(dado.icms),
-      pis: toNumber(dado.pis),
-      cofins: toNumber(dado.cofins),
-      irpj: toNumber(dado.irpj),
-      csll: toNumber(dado.csll),
-      iss: toNumber(dado.iss),
-      cpp: toNumber(dado.cpp),
-      das: toNumber(dado.das),
-      outros: toNumber(dado.outros)
+      icms: Math.max(0, toNumber(dado.icms)),
+      pis: Math.max(0, toNumber(dado.pis)),
+      cofins: Math.max(0, toNumber(dado.cofins)),
+      irpj: Math.max(0, toNumber(dado.irpj)),
+      csll: Math.max(0, toNumber(dado.csll)),
+      iss: Math.max(0, toNumber(dado.iss)),
+      cpp: Math.max(0, toNumber(dado.cpp)),
+      das: Math.max(0, toNumber(dado.das)),
+      outros: Math.max(0, toNumber(dado.outros))
     }
     
     console.log(`📦 [${fonte}] ${identificacao}:`, {

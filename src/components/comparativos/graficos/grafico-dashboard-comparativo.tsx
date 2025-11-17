@@ -280,15 +280,35 @@ export function GraficoDashboardComparativo({
 
   // Calcular estatísticas para insights
   const calcularEstatisticas = () => {
-    // Calcular totais de impostos de cada regime (usar Math.abs para garantir valores positivos)
-    const totalImpostosLucroReal = Math.abs(dadosGrafico.reduce((sum, d) => sum + (d.impostosLucroReal || 0), 0))
-    const totalImpostosLucroPresumido = Math.abs(dadosGrafico.reduce((sum, d) => sum + (d.impostosLucroPresumido || 0), 0))
-    const totalImpostosSimplesNacional = Math.abs(dadosGrafico.reduce((sum, d) => sum + (d.impostosSimplesNacional || 0), 0))
+    // ✅ Calcular totais DIRETAMENTE dos dados originais, não do dadosGrafico
+    // Isso garante que capturamos TODOS os dados, mesmo se houver problemas no mapeamento
+    const totalImpostosLucroReal = Math.max(0, 
+      (dadosLucroReal || []).reduce((sum, d) => sum + calcularTotalImpostos(d), 0)
+    )
+    const totalImpostosLucroPresumido = Math.max(0,
+      (dadosLucroPresumido || []).reduce((sum, d) => sum + calcularTotalImpostos(d), 0)
+    )
+    const totalImpostosSimplesNacional = Math.max(0,
+      (dadosSimplesNacional || []).reduce((sum, d) => sum + calcularTotalImpostos(d), 0)
+    )
     
-    console.log('📊 [STATS] Totais calculados:', {
-      lucroReal: totalImpostosLucroReal,
-      lucroPresumido: totalImpostosLucroPresumido,
-      simplesNacional: totalImpostosSimplesNacional
+    console.log('📊 [STATS] Totais calculados DIRETAMENTE dos dados originais:', {
+      lucroReal: {
+        total: totalImpostosLucroReal,
+        quantidadeRegistros: dadosLucroReal?.length || 0,
+        detalhamento: dadosLucroReal?.map(d => ({
+          mes: d.mes,
+          totalImpostos: calcularTotalImpostos(d)
+        }))
+      },
+      lucroPresumido: {
+        total: totalImpostosLucroPresumido,
+        quantidadeRegistros: dadosLucroPresumido?.length || 0
+      },
+      simplesNacional: {
+        total: totalImpostosSimplesNacional,
+        quantidadeRegistros: dadosSimplesNacional?.length || 0
+      }
     })
     
     const totalReceita = dadosGrafico.reduce((sum, d) => 

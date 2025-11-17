@@ -50,10 +50,11 @@ export function useMemoriaIRPJCSLL(config: TaxConfig): MemoriaIRPJCSLL {
     const lucroReal = lucroAntesIRCSLL + adicoes - exclusoes;
 
     // IRPJ Base (15% sobre lucro real)
+    // ✅ Não permite valor negativo - imposto sempre >= 0
     const irpjBase = {
       base: lucroReal,
       aliquota: config.irpjBase,
-      valor: (lucroReal * config.irpjBase) / 100,
+      valor: Math.max(0, (lucroReal * config.irpjBase) / 100),
     };
 
     // ═══════════════════════════════════════════════════════════════
@@ -76,16 +77,17 @@ export function useMemoriaIRPJCSLL(config: TaxConfig): MemoriaIRPJCSLL {
     const irpjAdicional = {
       base: baseAdicional,
       aliquota: config.irpjAdicional,
-      valor: (baseAdicional * config.irpjAdicional) / 100,
+      valor: Math.max(0, (baseAdicional * config.irpjAdicional) / 100),
     };
 
     const totalIRPJ = irpjBase.valor + irpjAdicional.valor;
 
     // CSLL (9% sobre lucro real)
+    // ✅ Não permite valor negativo - imposto sempre >= 0
     const csll = {
       base: lucroReal,
       aliquota: config.csllAliq,
-      valor: (lucroReal * config.csllAliq) / 100,
+      valor: Math.max(0, (lucroReal * config.csllAliq) / 100),
     };
 
     const totalIRPJCSLL = totalIRPJ + csll.valor;

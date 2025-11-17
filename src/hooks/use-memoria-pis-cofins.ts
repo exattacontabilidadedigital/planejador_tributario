@@ -55,9 +55,35 @@ export function useMemoriaPISCOFINS(config: TaxConfig): MemoriaPISCOFINS {
       valor: (despesasComCredito * config.cofinsAliq) / 100,
     };
 
+    // CRÉDITOS - Estoque Inicial (similar ao ICMS)
+    const creditoPISEstoqueInicial = {
+      base: config.creditoPISEstoqueInicial || 0,
+      valor: config.creditoPISEstoqueInicial || 0,
+    };
+
+    const creditoCOFINSEstoqueInicial = {
+      base: config.creditoCOFINSEstoqueInicial || 0,
+      valor: config.creditoCOFINSEstoqueInicial || 0,
+    };
+
+    // CRÉDITOS - Outros Créditos (similar ao ICMS)
+    const creditoPISOutros = {
+      base: config.creditoPISOutros || 0,
+      valor: config.creditoPISOutros || 0,
+    };
+
+    const creditoCOFINSOutros = {
+      base: config.creditoCOFINSOutros || 0,
+      valor: config.creditoCOFINSOutros || 0,
+    };
+
     // TOTALIZADORES
     const totalDebitosPIS = debitoPIS.valor;
-    const totalCreditosPIS = creditoPISCompras.valor + creditoPISDespesas.valor;
+    const totalCreditosPIS = 
+      creditoPISCompras.valor + 
+      creditoPISDespesas.valor +
+      creditoPISEstoqueInicial.valor +
+      creditoPISOutros.valor;
 
     // Se crédito > débito, imposto = 0 e fica crédito para próxima apuração
     const saldoPIS = totalDebitosPIS - totalCreditosPIS;
@@ -65,7 +91,11 @@ export function useMemoriaPISCOFINS(config: TaxConfig): MemoriaPISCOFINS {
     const creditoPISDisponivelProximaApuracao = Math.abs(Math.min(0, saldoPIS));
 
     const totalDebitosCOFINS = debitoCOFINS.valor;
-    const totalCreditosCOFINS = creditoCOFINSCompras.valor + creditoCOFINSDespesas.valor;
+    const totalCreditosCOFINS = 
+      creditoCOFINSCompras.valor + 
+      creditoCOFINSDespesas.valor +
+      creditoCOFINSEstoqueInicial.valor +
+      creditoCOFINSOutros.valor;
 
     const saldoCOFINS = totalDebitosCOFINS - totalCreditosCOFINS;
     const cofinsAPagar = Math.max(0, saldoCOFINS);
@@ -80,6 +110,10 @@ export function useMemoriaPISCOFINS(config: TaxConfig): MemoriaPISCOFINS {
       creditoCOFINSCompras,
       creditoPISDespesas,
       creditoCOFINSDespesas,
+      creditoPISEstoqueInicial,
+      creditoCOFINSEstoqueInicial,
+      creditoPISOutros,
+      creditoCOFINSOutros,
       despesasComCredito: (config.despesasDinamicas || []).filter(d => d.credito === 'com-credito'),
       totalDebitosPIS,
       totalCreditosPIS,

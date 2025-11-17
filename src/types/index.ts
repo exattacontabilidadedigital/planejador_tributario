@@ -80,6 +80,12 @@ export interface TaxConfig {
   creditoSTEntrada: number;
   outrosCreditos: number;
 
+  // Créditos Adicionais PIS/COFINS
+  creditoPISEstoqueInicial: number;
+  creditoCOFINSEstoqueInicial: number;
+  creditoPISOutros: number;
+  creditoCOFINSOutros: number;
+
   // Despesas Dinâmicas (PIS/COFINS)
   despesasDinamicas?: DespesaItem[];
 }
@@ -182,6 +188,22 @@ export interface MemoriaPISCOFINS {
   creditoCOFINSDespesas: {
     base: number;
     aliquota: number;
+    valor: number;
+  };
+  creditoPISEstoqueInicial: {
+    base: number;
+    valor: number;
+  };
+  creditoCOFINSEstoqueInicial: {
+    base: number;
+    valor: number;
+  };
+  creditoPISOutros: {
+    base: number;
+    valor: number;
+  };
+  creditoCOFINSOutros: {
+    base: number;
     valor: number;
   };
   despesasComCredito: DespesaItem[];

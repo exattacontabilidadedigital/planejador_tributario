@@ -401,6 +401,38 @@ export function ConfigPanel() {
             </Card>
           </div>
 
+          {/* Créditos PIS/COFINS */}
+          <Card className="border-l-4 border-l-pis">
+            <CardHeader>
+              <CardTitle className="text-lg">✅ Créditos Adicionais de PIS/COFINS</CardTitle>
+              <CardDescription>Créditos especiais e estoque inicial (similar ao ICMS)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2">
+                <CurrencyInput
+                  label="Crédito PIS - Estoque Inicial"
+                  value={config.creditoPISEstoqueInicial || 0}
+                  onChange={(value) => updateConfig({ creditoPISEstoqueInicial: value })}
+                />
+                <CurrencyInput
+                  label="Crédito COFINS - Estoque Inicial"
+                  value={config.creditoCOFINSEstoqueInicial || 0}
+                  onChange={(value) => updateConfig({ creditoCOFINSEstoqueInicial: value })}
+                />
+                <CurrencyInput
+                  label="Outros Créditos PIS"
+                  value={config.creditoPISOutros || 0}
+                  onChange={(value) => updateConfig({ creditoPISOutros: value })}
+                />
+                <CurrencyInput
+                  label="Outros Créditos COFINS"
+                  value={config.creditoCOFINSOutros || 0}
+                  onChange={(value) => updateConfig({ creditoCOFINSOutros: value })}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Informações Importantes */}
           <Card>
             <CardHeader>

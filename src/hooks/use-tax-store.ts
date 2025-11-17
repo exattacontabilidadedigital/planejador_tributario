@@ -70,6 +70,12 @@ const DEFAULT_CONFIG: TaxConfig = {
   creditoEnergiaIndustria: 2000,
   creditoSTEntrada: 3000,
   outrosCreditos: 1000,
+
+  // Créditos Adicionais PIS/COFINS
+  creditoPISEstoqueInicial: 0,
+  creditoCOFINSEstoqueInicial: 0,
+  creditoPISOutros: 0,
+  creditoCOFINSOutros: 0,
 };
 
 export const useTaxStore = create<TaxStore>()(

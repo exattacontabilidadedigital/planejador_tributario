@@ -201,6 +201,12 @@ export function transformConfiguracao(config: any): TaxConfig {
     creditoSTEntrada: sanitizeNumber(config.creditoSTEntrada || config.credito_st_entrada || 0),
     outrosCreditos: sanitizeNumber(config.outrosCreditos || config.outros_creditos || 0),
     
+    // Créditos PIS/COFINS
+    creditoPISEstoqueInicial: sanitizeNumber(config.creditoPISEstoqueInicial || config.credito_pis_estoque_inicial || 0),
+    creditoCOFINSEstoqueInicial: sanitizeNumber(config.creditoCOFINSEstoqueInicial || config.credito_cofins_estoque_inicial || 0),
+    creditoPISOutros: sanitizeNumber(config.creditoPISOutros || config.credito_pis_outros || 0),
+    creditoCOFINSOutros: sanitizeNumber(config.creditoCOFINSOutros || config.credito_cofins_outros || 0),
+    
     // Despesas Dinâmicas
     despesasDinamicas: config.despesasDinamicas || []
   }
@@ -277,6 +283,12 @@ function getDefaultConfig(): TaxConfig {
     creditoEnergiaIndustria: 0,
     creditoSTEntrada: 0,
     outrosCreditos: 0,
+    
+    // Créditos PIS/COFINS
+    creditoPISEstoqueInicial: 0,
+    creditoCOFINSEstoqueInicial: 0,
+    creditoPISOutros: 0,
+    creditoCOFINSOutros: 0,
     
     // Despesas Dinâmicas
     despesasDinamicas: []

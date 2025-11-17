@@ -84,6 +84,30 @@ export const TaxConfigSchema = z.object({
     .min(0, "Valor não pode ser negativo")
     .max(999_999_999, "Valor muito alto"),
 
+  creditoPISEstoqueInicial: z
+    .number()
+    .min(0, "Valor não pode ser negativo")
+    .max(999_999_999, "Valor muito alto")
+    .optional(),
+
+  creditoCOFINSEstoqueInicial: z
+    .number()
+    .min(0, "Valor não pode ser negativo")
+    .max(999_999_999, "Valor muito alto")
+    .optional(),
+
+  creditoPISOutros: z
+    .number()
+    .min(0, "Valor não pode ser negativo")
+    .max(999_999_999, "Valor muito alto")
+    .optional(),
+
+  creditoCOFINSOutros: z
+    .number()
+    .min(0, "Valor não pode ser negativo")
+    .max(999_999_999, "Valor muito alto")
+    .optional(),
+
   // PIS/COFINS - Alíquotas
   pisAliquota: z
     .number()

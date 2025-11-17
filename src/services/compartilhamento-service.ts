@@ -191,8 +191,10 @@ export async function buscarComparativoPublico(
     }
 
     // Se RPC falhou, usar SELECT direto
-    console.log('⚠️ [COMPARTILHAR] RPC não disponível, usando método alternativo')
+    console.log('⚠️ [COMPARTILHAR] RPC não disponível ou retornou erro:', rpcError?.message || 'sem erro mas sem dados')
+    console.log('⚠️ [COMPARTILHAR] Usando método alternativo (SELECT direto)')
     
+    // Buscar dados do comparativo e empresa separadamente
     const { data: selectData, error: selectError } = await supabase
       .from('comparativos_analise')
       .select(`
@@ -203,16 +205,37 @@ export async function buscarComparativoPublico(
         configuracao,
         resultados,
         created_at,
-        empresas (nome)
+        visualizacoes_publicas,
+        empresa_id
       `)
       .eq('token_compartilhamento', token)
       .eq('compartilhado', true)
       .or(`token_expira_em.is.null,token_expira_em.gt.${new Date().toISOString()}`)
       .single()
 
-    if (selectError || !selectData) {
+    if (selectError) {
+      console.error('❌ [COMPARTILHAR] Erro no SELECT direto:', selectError)
       console.log('⚠️ [COMPARTILHAR] Comparativo não encontrado ou expirado')
       return null
+    }
+
+    if (!selectData) {
+      console.log('⚠️ [COMPARTILHAR] Nenhum dado retornado')
+      return null
+    }
+
+    // Buscar nome da empresa separadamente (se houver empresa_id)
+    let empresaNome: string | null = null
+    if (selectData.empresa_id) {
+      const { data: empresaData } = await supabase
+        .from('empresas')
+        .select('nome_fantasia, razao_social, nome')
+        .eq('id', selectData.empresa_id)
+        .single()
+      
+      if (empresaData) {
+        empresaNome = empresaData.nome_fantasia || empresaData.razao_social || empresaData.nome || null
+      }
     }
 
     // Incrementar contador de visualizações
@@ -231,12 +254,13 @@ export async function buscarComparativoPublico(
       configuracao: selectData.configuracao,
       resultados: selectData.resultados,
       createdAt: selectData.created_at,
-      empresaNome: (selectData as any).empresas?.nome || null
+      empresaNome
     }
 
     console.log('✅ [COMPARTILHAR] Comparativo público encontrado (via SELECT):', {
       id: comparativo.id,
-      nome: comparativo.nome
+      nome: comparativo.nome,
+      empresaNome
     })
     
     return comparativo

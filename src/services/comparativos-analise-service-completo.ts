@@ -650,16 +650,44 @@ export class ComparativosAnaliseServiceCompleto {
     cenarioId?: string
   ): ResultadoRegime {
     
-    const cenarioNome = dados[0]?.nome || undefined
+    // ✅ Filtrar dados com mes inválido
+    const dadosValidos = dados.filter(d => {
+      if (d.mes === null || d.mes === undefined || d.mes === '') {
+        console.warn(`⚠️ Registro ignorado: mes inválido`, d)
+        return false
+      }
+      return true
+    })
+
+    if (dadosValidos.length === 0) {
+      console.error(`❌ Nenhum dado válido para processar no regime ${regime}`)
+      // Retornar resultado vazio mas válido
+      return {
+        regime,
+        cenarioId,
+        cenarioNome: undefined,
+        receitaTotal: 0,
+        impostos: { irpj: 0, csll: 0, pis: 0, cofins: 0, icms: 0, cpp: 0, iss: 0, outros: 0 },
+        totalImpostos: 0,
+        lucroLiquido: 0,
+        cargaTributaria: 0,
+        dadosMensais: [],
+        mesesComDados: [],
+        mesesSemDados: config.mesesSelecionados,
+        percentualCobertura: 0
+      }
+    }
+    
+    const cenarioNome = dadosValidos[0]?.nome || undefined
     const mesesSelecionados = config.mesesSelecionados
-    const mesesComDados = dados.map(d => this.formatarMes(d.mes))
+    const mesesComDados = dadosValidos.map(d => this.formatarMes(d.mes))
     const mesesSemDados = mesesSelecionados.filter(m => !mesesComDados.includes(m))
 
     console.log(`\n📊 [PROCESSAR REGIME] ${this.formatarRegime(regime)}${cenarioNome ? ` - ${cenarioNome}` : ''}`)
-    console.log(`   Dados recebidos: ${dados.length} registros`)
+    console.log(`   Dados recebidos: ${dados.length} registros (${dadosValidos.length} válidos)`)
 
     // Agregar dados mensais
-    const dadosMensais: DadosMensalRegime[] = dados.map(dado => {
+    const dadosMensais: DadosMensalRegime[] = dadosValidos.map(dado => {
       const receita = this.extrairReceita(dado)
       const impostos = this.extrairImpostos(dado)
       const totalImpostos = this.calcularTotalImpostos(impostos)
@@ -1075,8 +1103,19 @@ export class ComparativosAnaliseServiceCompleto {
   // MÉTODOS AUXILIARES
   // ============================================
 
-  private static formatarMes(mes: number | string): string {
+  private static formatarMes(mes: number | string | null | undefined): string {
+    if (mes === null || mes === undefined) {
+      console.warn('⚠️ formatarMes recebeu valor null/undefined')
+      return '00'
+    }
+    
     const mesNum = typeof mes === 'string' ? parseInt(mes) : mes
+    
+    if (isNaN(mesNum)) {
+      console.warn(`⚠️ formatarMes recebeu valor inválido: ${mes}`)
+      return '00'
+    }
+    
     return mesNum.toString().padStart(2, '0')
   }
 

@@ -1173,6 +1173,13 @@ export class ComparativosAnaliseServiceCompleto {
     
     // Para cenários de Lucro Real com impostos_detalhados (vem do buscarDadosLucroReal)
     if (dado.impostos_detalhados) {
+      console.log(`🔍 [EXTRAIR IMPOSTOS] Dado completo:`, {
+        mes: dado.mes,
+        nome: dado.nome,
+        total_impostos: dado.total_impostos,
+        impostos_detalhados: dado.impostos_detalhados
+      })
+      
       // ✅ Impostos negativos = 0 (não há imposto a pagar)
       const impostos = {
         icms: Math.max(0, toNumber(dado.impostos_detalhados.icms)),
@@ -1191,7 +1198,8 @@ export class ComparativosAnaliseServiceCompleto {
         pis: impostos.pis.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
         cofins: impostos.cofins.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
         irpj: impostos.irpj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-        csll: impostos.csll.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+        csll: impostos.csll.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+        total: (impostos.icms + impostos.pis + impostos.cofins + impostos.irpj + impostos.csll).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
       })
       
       return impostos

@@ -105,7 +105,16 @@ export function GraficoDashboardComparativo({
       primeiroItem: dados[0]
     })
     
-    setDadosDetalhados(dados)
+    // Ordenar dados por mês antes de exibir
+    const dadosOrdenados = [...dados].sort((a, b) => {
+      const mesA = typeof a.mes === 'string' ? parseInt(a.mes) : a.mes
+      const mesB = typeof b.mes === 'string' ? parseInt(b.mes) : b.mes
+      return mesA - mesB
+    })
+    
+    console.log('🔍 [DETALHAMENTO] Dados ordenados:', dadosOrdenados.map(d => ({ mes: d.mes, ano: d.ano })))
+    
+    setDadosDetalhados(dadosOrdenados)
     setModalAberto(true)
   }
   
@@ -346,6 +355,19 @@ export function GraficoDashboardComparativo({
     
     console.log('📊 [STATS] Regimes com dados:', regimesComDados)
     
+    // Calcular receita total: usar a receita do regime com MAIOR receita total
+    const receitaTotalLucroReal = (dadosLucroReal || []).reduce((sum, d) => sum + (d.receita || 0), 0)
+    const receitaTotalLucroPresumido = (dadosLucroPresumido || []).reduce((sum, d) => sum + (d.receita || 0), 0)
+    const receitaTotalSimplesNacional = (dadosSimplesNacional || []).reduce((sum, d) => sum + (d.receita || 0), 0)
+    const receitaTotal = Math.max(receitaTotalLucroReal, receitaTotalLucroPresumido, receitaTotalSimplesNacional)
+    
+    console.log('💰 [RECEITA] Cálculo da receita total:', {
+      lucroReal: receitaTotalLucroReal,
+      lucroPresumido: receitaTotalLucroPresumido,
+      simplesNacional: receitaTotalSimplesNacional,
+      receitaTotal
+    })
+    
     // Melhor regime = MENOR total de impostos (mais econômico)
     const melhorRegime = regimesComDados.reduce((best, current) => 
       current.total < best.total ? current : best, regimesComDados[0] || { nome: 'N/A', total: 0, cor: '#000', tipo: 'lucro_real' as const })
@@ -382,7 +404,7 @@ export function GraficoDashboardComparativo({
     }, dadosGrafico[0] || {})
     
     return {
-      totalReceita,
+      receitaTotal,
       totalImpostosLucroReal,
       totalImpostosLucroPresumido,
       totalImpostosSimplesNacional,
@@ -602,7 +624,7 @@ export function GraficoDashboardComparativo({
           <CardHeader className="pb-3">
             <CardDescription>Receita Total</CardDescription>
             <CardTitle className="text-2xl text-muted-foreground">
-              {formatarMoedaTooltip(stats.totalReceita)}
+              {formatarMoedaTooltip(stats.receitaTotal)}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -628,24 +650,24 @@ export function GraficoDashboardComparativo({
                 o que representa uma redução de <strong className="text-green-600">{stats.economiaPercentual.toFixed(1)}%</strong> na carga tributária.
               </p>
               
-              {stats.totalReceita > 0 && (
+              {stats.receitaTotal > 0 && (
                 <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t">
                   <div>
                     <p className="text-xs text-muted-foreground">Carga Tributária - {stats.melhorRegime.nome}</p>
                     <p className="text-lg font-semibold text-green-600">
-                      {((stats.melhorRegime.total / stats.totalReceita) * 100).toFixed(2)}%
+                      {((stats.melhorRegime.total / stats.receitaTotal) * 100).toFixed(2)}%
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Carga Tributária - {stats.piorRegime.nome}</p>
                     <p className="text-lg font-semibold text-red-600">
-                      {((stats.piorRegime.total / stats.totalReceita) * 100).toFixed(2)}%
+                      {((stats.piorRegime.total / stats.receitaTotal) * 100).toFixed(2)}%
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Redução de Carga</p>
                     <p className="text-lg font-semibold text-blue-600">
-                      {(((stats.piorRegime.total - stats.melhorRegime.total) / stats.totalReceita) * 100).toFixed(2)}%
+                      {(((stats.piorRegime.total - stats.melhorRegime.total) / stats.receitaTotal) * 100).toFixed(2)}%
                     </p>
                   </div>
                 </div>

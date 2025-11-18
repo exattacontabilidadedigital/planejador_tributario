@@ -74,14 +74,15 @@ export function useRelatoriosSimples(empresaId?: string) {
         }
       }
 
-      console.log('📊 [useRelatoriosSimples] Processando', cenariosDaEmpresa.length, 'cenários da empresa...')
-      console.log('📋 [useRelatoriosSimples] Cenários encontrados:', cenariosDaEmpresa.map(c => ({
+      console.log('💰 [DASHBOARD RECEITA] Processando', cenariosDaEmpresa.length, 'cenários da empresa...')
+      console.log('💰 [DASHBOARD RECEITA] Cenários encontrados:', cenariosDaEmpresa.map(c => ({
         id: c.id,
         nome: c.nome,
         mes: c.mes,
         ano: c.ano,
         hasConfiguracao: !!c.configuracao
       })))
+      console.log('💰 [DASHBOARD RECEITA] Iniciando cálculo da soma total de faturamento...')
 
       const totais = cenariosDaEmpresa.reduce((acc, cenario) => {
         // Busca a configuração do cenário - corrigido para 'configuracao'
@@ -92,29 +93,36 @@ export function useRelatoriosSimples(empresaId?: string) {
           return acc
         }
 
-        // Verificar múltiplas fontes de receita (prioridade: receita_total > receita > receitaBruta > receitaBrutaTotal)
-        const receita = configuracao.receita_total || 
-                       configuracao.receita || 
-                       configuracao.receitaBruta || 
-                       configuracao.receitaBrutaTotal ||
-                       configuracao.faturamento ||
-                       configuracao.faturamentoBruto ||
-                       0
+        // Verificar TODAS as possíveis fontes de receita/faturamento
+        const possiveisValores = {
+          receita_total: configuracao.receita_total || 0,
+          receita: configuracao.receita || 0,
+          receitaBruta: configuracao.receitaBruta || 0,
+          receitaBrutaTotal: configuracao.receitaBrutaTotal || 0,
+          faturamento: configuracao.faturamento || 0,
+          faturamentoBruto: configuracao.faturamentoBruto || 0,
+          valor: configuracao.valor || 0,
+          total: configuracao.total || 0
+        }
         
-        // Debug para verificar estrutura real
-        console.log(`💰 [useRelatoriosSimples] Cenário ${cenario.nome}:`, {
+        // Encontrar o maior valor não zero (assumindo que é o valor correto)
+        const valoresNaoZero = Object.entries(possiveisValores).filter(([_, valor]) => valor > 0)
+        const receita = valoresNaoZero.length > 0 
+          ? Math.max(...valoresNaoZero.map(([_, valor]) => valor))
+          : 0
+        
+        // Debug detalhado para cada cenário
+        console.log(`💰 [DASHBOARD RECEITA] Cenário: ${cenario.nome}`, {
           id: cenario.id,
-          receita_total: configuracao.receita_total,
-          receita: configuracao.receita,
-          receitaBruta: configuracao.receitaBruta,
-          receitaBrutaTotal: configuracao.receitaBrutaTotal,
-          faturamento: configuracao.faturamento,
-          faturamentoBruto: configuracao.faturamentoBruto,
-          receitaFinal: receita,
-          todosOsCampos: Object.keys(configuracao).filter(key => 
+          valoresEncontrados: possiveisValores,
+          camposReceita: valoresNaoZero,
+          valorEscolhido: receita,
+          criterio: receita === Math.max(...Object.values(possiveisValores)) ? 'MAIOR_VALOR' : 'FALLBACK',
+          estruturaCompleta: Object.keys(configuracao).filter(key => 
             key.toLowerCase().includes('receita') || 
             key.toLowerCase().includes('faturamento') ||
-            key.toLowerCase().includes('brut')
+            key.toLowerCase().includes('valor') ||
+            key.toLowerCase().includes('total')
           )
         })
         
@@ -148,12 +156,16 @@ export function useRelatoriosSimples(empresaId?: string) {
           : 0
       }
 
-      console.log('🎯 [useRelatoriosSimples] RESULTADO FINAL:', {
+      console.log('🎯 [DASHBOARD RECEITA] RESULTADO FINAL:', {
         totalReceita: resultado.totalReceita,
         totalReceitaFormatado: `R$ ${resultado.totalReceita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
         valorEsperado: 'R$ 1.762.826,70',
+        valorEsperadoNumerico: 1762826.70,
         diferenca: resultado.totalReceita - 1762826.70,
-        quantidadeCenarios: cenariosDaEmpresa.length
+        diferencaFormatada: `R$ ${(resultado.totalReceita - 1762826.70).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        percentualDiferenca: ((resultado.totalReceita - 1762826.70) / 1762826.70 * 100).toFixed(2) + '%',
+        quantidadeCenarios: cenariosDaEmpresa.length,
+        status: resultado.totalReceita === 1762826.70 ? '✅ CORRETO' : '❌ INCORRETO'
       })
 
       return resultado
@@ -193,12 +205,22 @@ export function useRelatoriosSimples(empresaId?: string) {
             return null
           }
 
-          // Verificar múltiplas fontes de receita (mesma lógica do resumoGeral)
-          const receita = configuracao.receita_total || 
-                         configuracao.receita || 
-                         configuracao.receitaBruta || 
-                         configuracao.receitaBrutaTotal ||
-                         0
+          // Aplicar mesma lógica de busca de receita do resumoGeral
+          const possiveisValores = {
+            receita_total: configuracao.receita_total || 0,
+            receita: configuracao.receita || 0,
+            receitaBruta: configuracao.receitaBruta || 0,
+            receitaBrutaTotal: configuracao.receitaBrutaTotal || 0,
+            faturamento: configuracao.faturamento || 0,
+            faturamentoBruto: configuracao.faturamentoBruto || 0,
+            valor: configuracao.valor || 0,
+            total: configuracao.total || 0
+          }
+          
+          const valoresNaoZero = Object.entries(possiveisValores).filter(([_, valor]) => valor > 0)
+          const receita = valoresNaoZero.length > 0 
+            ? Math.max(...valoresNaoZero.map(([_, valor]) => valor))
+            : 0
           
           // Tentar extrair mês de diferentes fontes (convertendo string para number se necessário)
           let mesReferencia = cenario.mes

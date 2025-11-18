@@ -423,12 +423,12 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
     : 'Período não especificado'
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 px-2 md:px-0">
       {/* Header + Compartilhamento */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+      <div className="flex flex-col gap-3 md:gap-4">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4">
           <div className="flex-1">
-            <h2 className="text-3xl font-bold">{nome}</h2>
+            <h2 className="text-2xl md:text-3xl font-bold break-words">{nome}</h2>
             {descricao && (
               <p className="text-muted-foreground mt-1">{descricao}</p>
             )}
@@ -443,13 +443,13 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
           </div>
           
           {/* Controles de Compartilhamento */}
-          <div className="flex flex-col gap-2 min-w-[200px]">
+          <div className="flex flex-col gap-2 w-full md:min-w-[200px] md:w-auto">
             {!estaCompartilhado ? (
               <Button
                 variant="default"
                 onClick={gerarLinkCompartilhado}
                 disabled={carregando}
-                className="w-full"
+                className="w-full text-sm md:text-base"
               >
                 {carregando ? (
                   <>
@@ -469,12 +469,12 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
                   <Link2 className="h-3 w-3 mr-1" />
                   Compartilhamento Ativo
                 </Badge>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={copiarLink}
-                    className="flex-1"
+                    className="flex-1 text-xs md:text-sm"
                   >
                     {copiado ? (
                       <>
@@ -528,29 +528,29 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
       {/* Resumo Executivo - Visualização de Impacto */}
       <Card className="border-2 border-primary bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5">
         <CardHeader>
-          <CardTitle className="text-2xl flex items-center gap-2">
-            <TrendingUp className="h-7 w-7 text-primary" />
+          <CardTitle className="text-xl md:text-2xl flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 md:h-7 md:w-7 text-primary" />
             Resumo Executivo
           </CardTitle>
-          <CardDescription className="text-base">
+          <CardDescription className="text-sm md:text-base">
             Análise do potencial de economia tributária
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6">
           {/* Destaque Principal - Economia */}
-          <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl p-6 shadow-lg">
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl p-4 md:p-6 shadow-lg">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <p className="text-sm font-medium opacity-90 mb-2">Você pode economizar</p>
-                <p className="text-4xl md:text-5xl font-bold tracking-tight">
+                <p className="text-xs md:text-sm font-medium opacity-90 mb-2">Você pode economizar</p>
+                <p className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
                   {formatarMoeda(analise.economiaAnual || 0)}
                 </p>
-                <p className="text-sm mt-2 opacity-90">por ano mudando para {getNomeRegime(analise.regimeMaisVantajoso)}</p>
+                <p className="text-xs md:text-sm mt-2 opacity-90">por ano mudando para {getNomeRegime(analise.regimeMaisVantajoso)}</p>
               </div>
               <div className="text-center md:text-right">
-                <div className="bg-white/20 backdrop-blur-sm rounded-lg px-6 py-4">
-                  <p className="text-sm font-medium opacity-90 mb-1">Potencial de economia</p>
-                  <p className="text-3xl font-bold">{formatarPercentual(analise.economiaPercentual || 0)}</p>
+                <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 md:px-6 py-3 md:py-4">
+                  <p className="text-xs md:text-sm font-medium opacity-90 mb-1">Potencial de economia</p>
+                  <p className="text-xl md:text-2xl lg:text-3xl font-bold">{formatarPercentual(analise.economiaPercentual || 0)}</p>
                   <p className="text-xs mt-1 opacity-90">na sua tributação</p>
                 </div>
               </div>
@@ -559,11 +559,11 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
 
           {/* Comparação Visual em Semáforo */}
           <div>
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Comparação entre Regimes Tributários
+            <h3 className="font-semibold mb-3 md:mb-4 flex items-center gap-2 text-base md:text-lg">
+              <DollarSign className="h-4 w-4 md:h-5 md:w-5" />
+              Comparação entre Regimes
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-3">
               {(() => {
                 // Calcular totais de impostos por regime
                 const regimesComTotais = [
@@ -649,7 +649,7 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
           {/* Métricas Principais em Cards Compactos */}
           <div>
             <h3 className="font-semibold mb-4">Indicadores Principais</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <Card className="bg-muted/50">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-1 mb-1">
@@ -728,7 +728,7 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-3">
             <div>
               <p className="text-sm text-muted-foreground">Economia Anual</p>
               <p className="text-2xl font-bold text-green-600">
@@ -758,30 +758,30 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
           <CardTitle>📊 Resumo Comparativo</CardTitle>
           <CardDescription>Visão geral dos indicadores por regime</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
+        <CardContent className="p-3 md:p-6">
+          <div className="overflow-x-auto -mx-3 md:mx-0">
+            <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left p-3 font-semibold">Métrica</th>
+                  <th className="text-left p-2 md:p-3 font-semibold text-sm md:text-base">Métrica</th>
                   {regimes.map(r => (
-                    <th key={r.id} className="text-right p-3 font-semibold">{r.nome}</th>
+                    <th key={r.id} className="text-right p-2 md:p-3 font-semibold text-sm md:text-base whitespace-nowrap">{r.nome}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 <tr className="border-b hover:bg-muted/50">
-                  <td className="p-3">Receita Total</td>
+                  <td className="p-2 md:p-3 text-sm md:text-base">Receita Total</td>
                   {regimes.map(r => (
-                    <td key={r.id} className="text-right p-3 font-mono">
+                    <td key={r.id} className="text-right p-2 md:p-3 font-mono text-xs md:text-sm whitespace-nowrap">
                       {formatarMoeda(r.dados!.receitaTotal)}
                     </td>
                   ))}
                 </tr>
                 <tr className="border-b hover:bg-muted/50">
-                  <td className="p-3">Total de Impostos</td>
+                  <td className="p-2 md:p-3 text-sm md:text-base">Total de Impostos</td>
                   {regimes.map(r => (
-                    <td key={r.id} className="text-right p-3 font-mono">
+                    <td key={r.id} className="text-right p-2 md:p-3 font-mono text-xs md:text-sm whitespace-nowrap">
                       {formatarMoeda(r.dados!.totalImpostos)}
                       {r.id === analise.regimeMaisVantajoso && (
                         <span className="ml-2">🥇</span>
@@ -790,9 +790,9 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
                   ))}
                 </tr>
                 <tr className="border-b hover:bg-muted/50">
-                  <td className="p-3">Lucro Líquido</td>
+                  <td className="p-2 md:p-3 text-sm md:text-base">Lucro Líquido</td>
                   {regimes.map(r => (
-                    <td key={r.id} className="text-right p-3 font-mono">
+                    <td key={r.id} className="text-right p-2 md:p-3 font-mono text-xs md:text-sm whitespace-nowrap">
                       {formatarMoeda(r.dados!.lucroLiquido)}
                       {r.id === analise.regimeMaisVantajoso && (
                         <span className="ml-2">🥇</span>
@@ -859,7 +859,7 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Receita Total</p>
                     <p className="text-xl font-semibold">{formatarMoeda(regime.dados!.receitaTotal)}</p>
@@ -882,7 +882,7 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
 
                 <div>
                   <h4 className="font-semibold mb-3">Detalhamento de Impostos</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3">
                     <div className="flex justify-between">
                       <span className="text-sm">ICMS:</span>
                       <span className="font-mono text-sm">{formatarMoeda(regime.dados!.impostosPorTipo.icms)}</span>
@@ -924,7 +924,7 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
       )}
 
       {/* Insights e Recomendações */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         {/* Insights */}
         {analise.insights && analise.insights.length > 0 && (
         <Card>

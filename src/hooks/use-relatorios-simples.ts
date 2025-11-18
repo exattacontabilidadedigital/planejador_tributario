@@ -85,8 +85,23 @@ export function useRelatoriosSimples(empresaId?: string) {
           return acc
         }
 
-        // Calcular impostos baseado na estrutura existente
-        const receita = configuracao.receitaBruta || 0
+        // Verificar múltiplas fontes de receita (prioridade: receita_total > receita > receitaBruta > receitaBrutaTotal)
+        const receita = configuracao.receita_total || 
+                       configuracao.receita || 
+                       configuracao.receitaBruta || 
+                       configuracao.receitaBrutaTotal ||
+                       0
+        
+        // Debug para verificar estrutura real
+        console.log(`💰 [useRelatoriosSimples] Cenário ${cenario.nome}:`, {
+          id: cenario.id,
+          receita_total: configuracao.receita_total,
+          receita: configuracao.receita,
+          receitaBruta: configuracao.receitaBruta,
+          receitaBrutaTotal: configuracao.receitaBrutaTotal,
+          receitaFinal: receita,
+          estruturaCompleta: Object.keys(configuracao)
+        })
         
         // Cálculo simplificado dos impostos (você pode expandir conforme a necessidade)
         const icms = receita * ((configuracao.icmsInterno || 0) / 100)
@@ -151,7 +166,12 @@ export function useRelatoriosSimples(empresaId?: string) {
             return null
           }
 
-          const receita = configuracao.receitaBruta || 0
+          // Verificar múltiplas fontes de receita (mesma lógica do resumoGeral)
+          const receita = configuracao.receita_total || 
+                         configuracao.receita || 
+                         configuracao.receitaBruta || 
+                         configuracao.receitaBrutaTotal ||
+                         0
           
           // Tentar extrair mês de diferentes fontes (convertendo string para number se necessário)
           let mesReferencia = cenario.mes

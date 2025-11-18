@@ -599,41 +599,41 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
                   
                   return (
                     <Card key={regime.id} className={`${corBorda} border-2 ${corBg} relative overflow-hidden`}>
-                      <div className="absolute top-2 right-2 text-3xl opacity-20">{icone}</div>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg flex items-center justify-between">
-                          <span>{regime.nome}</span>
-                          {isMelhor && <Trophy className="h-5 w-5 text-green-600" />}
+                      <div className="absolute top-1 right-1 md:top-2 md:right-2 text-xl md:text-3xl opacity-20">{icone}</div>
+                      <CardHeader className="pb-2 md:pb-3 p-3 md:p-6">
+                        <CardTitle className="text-sm md:text-lg flex items-center justify-between">
+                          <span className="truncate mr-2">{regime.nome}</span>
+                          {isMelhor && <Trophy className="h-4 w-4 md:h-5 md:w-5 text-green-600 flex-shrink-0" />}
                         </CardTitle>
                         <Badge 
                           variant={isMelhor ? 'default' : 'secondary'} 
                           className={`w-fit text-xs ${isMelhor ? 'bg-green-600' : isIntermediario ? 'bg-yellow-600' : 'bg-red-600'}`}
                         >
-                          {label}
+                          <span className="truncate">{label}</span>
                         </Badge>
                       </CardHeader>
-                      <CardContent className="space-y-2">
+                      <CardContent className="space-y-2 p-3 md:p-6">
                         <div>
                           <div className="flex items-center gap-1 mb-1">
                             <p className="text-xs text-muted-foreground">Total de Impostos/Ano</p>
                             <TooltipExplicativo termo="economia_tributaria" showIcon={true} iconSize="sm" />
                           </div>
-                          <p className="text-xl font-bold">{formatarMoeda(regime.total)}</p>
+                          <p className="text-lg md:text-xl font-bold">{formatarMoeda(regime.total)}</p>
                         </div>
                         <div>
                           <div className="flex items-center gap-1 mb-1">
                             <p className="text-xs text-muted-foreground">Carga Tributária</p>
                             <TooltipExplicativo termo="carga_tributaria" showIcon={true} iconSize="sm" />
                           </div>
-                          <p className="text-lg font-semibold flex items-center gap-2">
-                            <Percent className="h-4 w-4" />
+                          <p className="text-base md:text-lg font-semibold flex items-center gap-2">
+                            <Percent className="h-3 w-3 md:h-4 md:w-4" />
                             {formatarPercentual(regime.carga)}
                           </p>
                         </div>
                         {!isMelhor && (
                           <div className="pt-2 border-t">
                             <p className="text-xs text-muted-foreground">A mais que a melhor opção</p>
-                            <p className="text-sm font-semibold text-red-600">
+                            <p className="text-xs md:text-sm font-semibold text-red-600">
                               +{formatarMoeda(regime.total - regimesComTotais[0].total)}
                             </p>
                           </div>
@@ -651,39 +651,39 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
             <h3 className="font-semibold mb-4">Indicadores Principais</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <Card className="bg-muted/50">
-                <CardContent className="p-4">
+                <CardContent className="p-3 md:p-4">
                   <div className="flex items-center gap-1 mb-1">
                     <p className="text-xs text-muted-foreground">Economia Anual</p>
                     <TooltipExplicativo termo="economia_tributaria" showIcon={true} iconSize="sm" />
                   </div>
-                  <p className="text-lg font-bold text-green-600">{formatarMoeda(analise.economiaAnual || 0)}</p>
+                  <p className="text-base md:text-lg font-bold text-green-600">{formatarMoeda(analise.economiaAnual || 0)}</p>
                 </CardContent>
               </Card>
               <Card className="bg-muted/50">
-                <CardContent className="p-4">
+                <CardContent className="p-3 md:p-4">
                   <div className="flex items-center gap-1 mb-1">
                     <p className="text-xs text-muted-foreground">Economia %</p>
                     <TooltipExplicativo termo="aliquota_efetiva" showIcon={true} iconSize="sm" />
                   </div>
-                  <p className="text-lg font-bold text-green-600">{formatarPercentual(analise.economiaPercentual || 0)}</p>
+                  <p className="text-base md:text-lg font-bold text-green-600">{formatarPercentual(analise.economiaPercentual || 0)}</p>
                 </CardContent>
               </Card>
               <Card className="bg-muted/50">
-                <CardContent className="p-4">
+                <CardContent className="p-3 md:p-4">
                   <div className="flex items-center gap-1 mb-1">
                     <p className="text-xs text-muted-foreground">Diferença Maior-Menor</p>
                     <TooltipExplicativo termo="economia_tributaria" showIcon={true} iconSize="sm" />
                   </div>
-                  <p className="text-lg font-bold">{formatarMoeda(analise.diferencaMaiorMenor || 0)}</p>
+                  <p className="text-base md:text-lg font-bold">{formatarMoeda(analise.diferencaMaiorMenor || 0)}</p>
                 </CardContent>
               </Card>
               <Card className="bg-muted/50">
-                <CardContent className="p-4">
+                <CardContent className="p-3 md:p-4">
                   <div className="flex items-center gap-1 mb-1">
                     <p className="text-xs text-muted-foreground">Regime Recomendado</p>
                     <TooltipExplicativo termo={analise.regimeMaisVantajoso} showIcon={true} iconSize="sm" />
                   </div>
-                  <Badge variant="default" className="text-xs">
+                  <Badge variant="default" className="text-xs truncate max-w-full">
                     {getNomeRegime(analise.regimeMaisVantajoso)}
                   </Badge>
                 </CardContent>
@@ -857,47 +857,47 @@ export function VisualizacaoComparativo({ comparativo }: VisualizacaoComparativo
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="p-3 md:p-6">
+              <div className="space-y-3 md:space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Receita Total</p>
-                    <p className="text-xl font-semibold">{formatarMoeda(regime.dados!.receitaTotal)}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">Receita Total</p>
+                    <p className="text-lg md:text-xl font-semibold">{formatarMoeda(regime.dados!.receitaTotal)}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Impostos</p>
-                    <p className="text-xl font-semibold">{formatarMoeda(regime.dados!.totalImpostos)}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">Total Impostos</p>
+                    <p className="text-lg md:text-xl font-semibold">{formatarMoeda(regime.dados!.totalImpostos)}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Lucro Líquido</p>
-                    <p className="text-xl font-semibold">{formatarMoeda(regime.dados!.lucroLiquido)}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">Lucro Líquido</p>
+                    <p className="text-lg md:text-xl font-semibold">{formatarMoeda(regime.dados!.lucroLiquido)}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Carga Tributária</p>
-                    <p className="text-xl font-semibold">{formatarPercentual(regime.dados!.cargaTributaria)}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">Carga Tributária</p>
+                    <p className="text-lg md:text-xl font-semibold">{formatarPercentual(regime.dados!.cargaTributaria)}</p>
                   </div>
                 </div>
 
                 <Separator />
 
                 <div>
-                  <h4 className="font-semibold mb-3">Detalhamento de Impostos</h4>
+                  <h4 className="font-semibold mb-2 md:mb-3 text-sm md:text-base">Detalhamento de Impostos</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3">
                     <div className="flex justify-between">
-                      <span className="text-sm">ICMS:</span>
-                      <span className="font-mono text-sm">{formatarMoeda(regime.dados!.impostosPorTipo.icms)}</span>
+                      <span className="text-xs md:text-sm">ICMS:</span>
+                      <span className="font-mono text-xs md:text-sm">{formatarMoeda(regime.dados!.impostosPorTipo.icms)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm">PIS:</span>
-                      <span className="font-mono text-sm">{formatarMoeda(regime.dados!.impostosPorTipo.pis)}</span>
+                      <span className="text-xs md:text-sm">PIS:</span>
+                      <span className="font-mono text-xs md:text-sm">{formatarMoeda(regime.dados!.impostosPorTipo.pis)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm">COFINS:</span>
-                      <span className="font-mono text-sm">{formatarMoeda(regime.dados!.impostosPorTipo.cofins)}</span>
+                      <span className="text-xs md:text-sm">COFINS:</span>
+                      <span className="font-mono text-xs md:text-sm">{formatarMoeda(regime.dados!.impostosPorTipo.cofins)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm">IRPJ:</span>
-                      <span className="font-mono text-sm">{formatarMoeda(regime.dados!.impostosPorTipo.irpj)}</span>
+                      <span className="text-xs md:text-sm">IRPJ:</span>
+                      <span className="font-mono text-xs md:text-sm">{formatarMoeda(regime.dados!.impostosPorTipo.irpj)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm">CSLL:</span>

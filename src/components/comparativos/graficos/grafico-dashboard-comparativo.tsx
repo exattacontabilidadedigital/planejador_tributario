@@ -743,8 +743,8 @@ export function GraficoDashboardComparativo({
             </div>
           </div>
         </CardHeader>
-      <CardContent>
-        <div className={`w-full ${tipoVisualizacao === 'pizza' && modoPizza === 'regimes' ? 'h-auto' : 'h-[400px]'}`}>
+      <CardContent className="p-3 md:p-6">
+        <div className={`w-full ${tipoVisualizacao === 'pizza' && modoPizza === 'regimes' ? 'min-h-[600px] h-auto' : 'h-[400px]'} relative overflow-hidden`}>
           {tipoVisualizacao === 'linha' && (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
@@ -911,9 +911,9 @@ export function GraficoDashboardComparativo({
             
             {/* Gráfico de Pizza - Comparação entre Regimes ou Detalhamento por Imposto */}
             {tipoVisualizacao === 'pizza' && (
-          <div className="w-full h-full">
+          <div className="w-full h-full flex flex-col space-y-4">
             {/* Controles de modo de visualização da pizza */}
-            <div className="flex flex-col sm:flex-row justify-center gap-2 mb-4 px-2">
+            <div className="flex flex-col sm:flex-row justify-center gap-2 mb-4 px-2 flex-shrink-0">
               <Button
                 variant={modoPizza === 'regimes' ? 'default' : 'outline'}
                 size="sm"
@@ -936,7 +936,7 @@ export function GraficoDashboardComparativo({
             
             {modoPizza === 'regimes' ? (
               // MODO 1: Pizza comparando total de impostos por regime
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center w-full flex-grow min-h-0 space-y-4">
                 {(() => {
                   // Calcular totais de cada regime
                   const totalReal = (dadosLucroReal || []).reduce((sum, dado) => sum + calcularTotalImpostos(dado), 0)
@@ -967,8 +967,9 @@ export function GraficoDashboardComparativo({
                       </p>
                       
                       {dadosPizzaRegimes.length > 0 ? (
-                        <>
-                          <ResponsiveContainer width="100%" height={400}>
+                        <div className="w-full flex flex-col space-y-6">
+                          <div className="w-full h-[400px] flex-shrink-0">
+                            <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                               <Pie
                                 data={dadosPizzaRegimes}
@@ -1010,10 +1011,11 @@ export function GraficoDashboardComparativo({
                                 wrapperStyle={{ fontSize: '14px', fontWeight: 'bold' }}
                               />
                             </PieChart>
-                          </ResponsiveContainer>
+                            </ResponsiveContainer>
+                          </div>
                           
                           {/* Ranking de regimes */}
-                          <div className="mt-6 space-y-2 relative z-10">
+                          <div className="w-full space-y-2 flex-shrink-0">
                             <h4 className="text-sm font-semibold text-center mb-3">Ranking de Economia:</h4>
                             {dadosPizzaRegimes
                               .sort((a, b) => a.value - b.value)
@@ -1049,9 +1051,9 @@ export function GraficoDashboardComparativo({
                                     </div>
                                   </div>
                                 )
-                              })}
+                              })}          
                           </div>
-                        </>
+                        </div>
                       ) : (
                         <div className="flex items-center justify-center text-muted-foreground h-64">
                           Nenhum dado disponível para comparação
@@ -1063,7 +1065,8 @@ export function GraficoDashboardComparativo({
               </div>
             ) : (
               // MODO 2: Pizzas com detalhamento por tipo de imposto
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
+              <div className="w-full flex-grow min-h-0 overflow-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
                 {(() => {
                   // Cores para cada tipo de imposto
                   const CORES_IMPOSTOS = {
@@ -1347,6 +1350,7 @@ export function GraficoDashboardComparativo({
                   </>
                 )
               })()}
+                </div>
               </div>
             )}
           </div>

@@ -544,22 +544,22 @@ export function GraficoDashboardComparativo({
   return (
     <>
       {/* Cards de Resumo */}
-      <div className="col-span-full grid grid-cols-4 gap-4">
+      <div className="col-span-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {/* Card: Cenário Principal (Lucro Real) */}
         <Card 
           className="border-primary/50 cursor-pointer transition-all hover:shadow-lg"
           onClick={() => abrirDetalhamento('lucro_real')}
         >
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2 md:pb-3 p-3 md:p-6">
             <CardDescription className="flex items-center justify-between">
-              <span className="font-semibold">Cenário Principal</span>
-              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">Lucro Real</span>
+              <span className="font-semibold text-xs md:text-sm">Cenário Principal</span>
+              <span className="text-xs bg-primary/10 text-primary px-1 md:px-2 py-1 rounded">Lucro Real</span>
             </CardDescription>
-            <CardTitle className="text-2xl text-blue-600">
+            <CardTitle className="text-lg md:text-2xl text-blue-600">
               {formatarMoedaTooltip(stats.totalImpostosLucroReal)}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 md:p-6">
             <p className="text-xs text-muted-foreground">Clique para ver detalhes</p>
           </CardContent>
         </Card>
@@ -575,22 +575,22 @@ export function GraficoDashboardComparativo({
             abrirDetalhamento(regimeParaAbrir)
           }}
         >
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2 md:pb-3 p-3 md:p-6">
             <CardDescription className="flex items-center justify-between">
-              <span className="font-semibold">Dados Comparativos</span>
-              <span className="text-xs bg-secondary px-2 py-1 rounded font-medium">{nomeRegimeDinamico}</span>
+              <span className="font-semibold text-xs md:text-sm">Dados Comparativos</span>
+              <span className="text-xs bg-secondary px-1 md:px-2 py-1 rounded font-medium">{nomeRegimeDinamico}</span>
             </CardDescription>
-            <CardTitle className={`text-2xl flex items-center gap-2 ${stats.melhorRegime.nome === nomeRegimeDinamico ? 'text-green-600' : stats.piorRegime.nome === nomeRegimeDinamico ? 'text-red-500' : 'text-blue-500'}`}>
+            <CardTitle className={`text-lg md:text-2xl flex items-center gap-2 ${stats.melhorRegime.nome === nomeRegimeDinamico ? 'text-green-600' : stats.piorRegime.nome === nomeRegimeDinamico ? 'text-red-500' : 'text-blue-500'}`}>
               {nomeRegimeDinamico === 'Lucro Presumido' ? formatarMoedaTooltip(stats.totalImpostosLucroPresumido) : formatarMoedaTooltip(stats.totalImpostosSimplesNacional)}
               {stats.melhorRegime.nome === nomeRegimeDinamico && stats.piorRegime.nome !== nomeRegimeDinamico && (
-                <span className="text-xs font-semibold text-green-600 bg-green-100 dark:bg-green-900 px-2 py-1 rounded">✓ Mais Econômico</span>
+                <span className="text-xs font-semibold text-green-600 bg-green-100 dark:bg-green-900 px-1 md:px-2 py-1 rounded">✓ Mais Econômico</span>
               )}
               {stats.piorRegime.nome === nomeRegimeDinamico && stats.melhorRegime.nome !== nomeRegimeDinamico && (
-                <span className="text-xs font-semibold text-red-600 bg-red-100 dark:bg-red-900 px-2 py-1 rounded">Menos Vantajoso</span>
+                <span className="text-xs font-semibold text-red-600 bg-red-100 dark:bg-red-900 px-1 md:px-2 py-1 rounded">Menos Vantajoso</span>
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 md:p-6">
             <p className="text-xs text-muted-foreground">
               Clique para ver detalhes
             </p>
@@ -599,12 +599,12 @@ export function GraficoDashboardComparativo({
 
         {/* Card: Diferença e Insights */}
         <Card className="border-2 border-muted">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2 md:pb-3 p-3 md:p-6">
             <CardDescription className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Diferença entre Regimes
+              <TrendingUp className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="text-xs md:text-sm">Diferença entre Regimes</span>
             </CardDescription>
-            <CardTitle className={`text-2xl ${
+            <CardTitle className={`text-lg md:text-2xl ${
               stats.economia > 0 
                 ? stats.melhorRegime.nome === 'Lucro Real' 
                   ? 'text-blue-600' 
@@ -614,7 +614,7 @@ export function GraficoDashboardComparativo({
               {formatarMoedaTooltip(stats.economia)}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 md:p-6">
             <p className="text-xs text-muted-foreground">
               {stats.economia > 0 
                 ? `${stats.melhorRegime.nome} economiza ${stats.economiaPercentual.toFixed(1)}%`
@@ -626,13 +626,13 @@ export function GraficoDashboardComparativo({
         
         {/* Card: Receita Total (movido para 4ª posição) */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Receita Total</CardDescription>
-            <CardTitle className="text-2xl text-muted-foreground">
+          <CardHeader className="pb-2 md:pb-3 p-3 md:p-6">
+            <CardDescription className="text-xs md:text-sm">Receita Total</CardDescription>
+            <CardTitle className="text-lg md:text-2xl text-muted-foreground">
               {formatarMoedaTooltip(stats.receitaTotal)}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 md:p-6">
             <p className="text-xs text-muted-foreground">Base de cálculo</p>
           </CardContent>
         </Card>

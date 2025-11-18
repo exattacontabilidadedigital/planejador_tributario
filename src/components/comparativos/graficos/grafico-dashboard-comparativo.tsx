@@ -694,46 +694,51 @@ export function GraficoDashboardComparativo({
             </div>
             
             {/* Seletor de Visualização */}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-1 md:gap-2 justify-center sm:justify-end">
               <Button
                 variant={tipoVisualizacao === 'linha' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTipoVisualizacao('linha')}
                 title="Gráfico de Linhas"
+                className="h-7 w-7 p-0 md:h-8 md:w-8 md:p-2"
               >
-                <LineChartIcon className="h-4 w-4" />
+                <LineChartIcon className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
               <Button
                 variant={tipoVisualizacao === 'barra' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTipoVisualizacao('barra')}
                 title="Gráfico de Barras"
+                className="h-7 w-7 p-0 md:h-8 md:w-8 md:p-2"
               >
-                <BarChart3 className="h-4 w-4" />
+                <BarChart3 className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
               <Button
                 variant={tipoVisualizacao === 'barraEmpilhada' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTipoVisualizacao('barraEmpilhada')}
                 title="Barras Empilhadas"
+                className="h-7 w-7 p-0 md:h-8 md:w-8 md:p-2"
               >
-                <TrendingUp className="h-4 w-4" />
+                <TrendingUp className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
               <Button
                 variant={tipoVisualizacao === 'pizza' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTipoVisualizacao('pizza')}
                 title="Gráfico de Pizza"
+                className="h-7 w-7 p-0 md:h-8 md:w-8 md:p-2"
               >
-                <PieChartIcon className="h-4 w-4" />
+                <PieChartIcon className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
               <Button
                 variant={tipoVisualizacao === 'radar' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTipoVisualizacao('radar')}
                 title="Gráfico de Radar"
+                className="h-7 w-7 p-0 md:h-8 md:w-8 md:p-2"
               >
-                <RadarIcon className="h-4 w-4" />
+                <RadarIcon className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
             </div>
           </div>
@@ -908,20 +913,24 @@ export function GraficoDashboardComparativo({
             {tipoVisualizacao === 'pizza' && (
           <div className="w-full h-full">
             {/* Controles de modo de visualização da pizza */}
-            <div className="flex justify-center gap-2 mb-4">
+            <div className="flex flex-col sm:flex-row justify-center gap-2 mb-4 px-2">
               <Button
                 variant={modoPizza === 'regimes' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setModoPizza('regimes')}
+                className="text-xs md:text-sm px-2 md:px-3 h-8 whitespace-normal text-center"
               >
-                Comparação entre Regimes
+                <span className="hidden sm:inline">Comparação entre Regimes</span>
+                <span className="sm:hidden">Comparação Regimes</span>
               </Button>
               <Button
                 variant={modoPizza === 'detalhamento' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setModoPizza('detalhamento')}
+                className="text-xs md:text-sm px-2 md:px-3 h-8 whitespace-normal text-center"
               >
-                Detalhamento por Tipo de Imposto
+                <span className="hidden sm:inline">Detalhamento por Tipo de Imposto</span>
+                <span className="sm:hidden">Por Tipo de Imposto</span>
               </Button>
             </div>
             

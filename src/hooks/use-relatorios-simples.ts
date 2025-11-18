@@ -75,6 +75,13 @@ export function useRelatoriosSimples(empresaId?: string) {
       }
 
       console.log('📊 [useRelatoriosSimples] Processando', cenariosDaEmpresa.length, 'cenários da empresa...')
+      console.log('📋 [useRelatoriosSimples] Cenários encontrados:', cenariosDaEmpresa.map(c => ({
+        id: c.id,
+        nome: c.nome,
+        mes: c.mes,
+        ano: c.ano,
+        hasConfiguracao: !!c.configuracao
+      })))
 
       const totais = cenariosDaEmpresa.reduce((acc, cenario) => {
         // Busca a configuração do cenário - corrigido para 'configuracao'
@@ -90,6 +97,8 @@ export function useRelatoriosSimples(empresaId?: string) {
                        configuracao.receita || 
                        configuracao.receitaBruta || 
                        configuracao.receitaBrutaTotal ||
+                       configuracao.faturamento ||
+                       configuracao.faturamentoBruto ||
                        0
         
         // Debug para verificar estrutura real
@@ -99,8 +108,14 @@ export function useRelatoriosSimples(empresaId?: string) {
           receita: configuracao.receita,
           receitaBruta: configuracao.receitaBruta,
           receitaBrutaTotal: configuracao.receitaBrutaTotal,
+          faturamento: configuracao.faturamento,
+          faturamentoBruto: configuracao.faturamentoBruto,
           receitaFinal: receita,
-          estruturaCompleta: Object.keys(configuracao)
+          todosOsCampos: Object.keys(configuracao).filter(key => 
+            key.toLowerCase().includes('receita') || 
+            key.toLowerCase().includes('faturamento') ||
+            key.toLowerCase().includes('brut')
+          )
         })
         
         // Cálculo simplificado dos impostos (você pode expandir conforme a necessidade)
@@ -110,6 +125,8 @@ export function useRelatoriosSimples(empresaId?: string) {
         const impostos = icms + pis + cofins
         
         const lucro = receita - impostos - (configuracao.cmvTotal || 0)
+
+        console.log(`✅ [useRelatoriosSimples] Adicionando cenário ${cenario.nome}: R$ ${receita.toFixed(2)} (Total acumulado: R$ ${(acc.totalReceita + receita).toFixed(2)})`)
 
         return {
           totalReceita: acc.totalReceita + receita,
@@ -124,12 +141,22 @@ export function useRelatoriosSimples(empresaId?: string) {
         economiaSimples: 0
       })
 
-      return {
+      const resultado = {
         ...totais,
         percentualTributario: totais.totalReceita > 0 
           ? (totais.totalImpostos / totais.totalReceita) * 100 
           : 0
       }
+
+      console.log('🎯 [useRelatoriosSimples] RESULTADO FINAL:', {
+        totalReceita: resultado.totalReceita,
+        totalReceitaFormatado: `R$ ${resultado.totalReceita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        valorEsperado: 'R$ 1.762.826,70',
+        diferenca: resultado.totalReceita - 1762826.70,
+        quantidadeCenarios: cenariosDaEmpresa.length
+      })
+
+      return resultado
     } catch (err) {
       console.error('Erro ao calcular resumo geral:', err)
       setError(err instanceof Error ? err.message : 'Erro desconhecido')

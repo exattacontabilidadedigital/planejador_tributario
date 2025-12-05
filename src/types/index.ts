@@ -40,6 +40,8 @@ export interface TaxConfig {
 
   // Valores Financeiros
   receitaBruta: number;
+  receita_total?: number; // Compatibilidade com dados antigos/importados
+  receita?: number; // Compatibilidade com dados antigos/importados
   vendasInternas: number; // Percentual
   vendasInterestaduais: number; // Percentual (calculado)
   consumidorFinal: number; // Percentual

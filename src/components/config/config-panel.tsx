@@ -146,6 +146,21 @@ export function ConfigPanel() {
                   onChange={(value) => updateConfig({ receitaBruta: value })}
                   required
                 />
+
+                <div className="pt-4 border-t mt-4">
+                  <PercentageInput
+                    label="Porcentagem de Substituição Tributária"
+                    value={config.percentualST || 0}
+                    onChange={(value) => updateConfig({ percentualST: value })}
+                    showSlider
+                    helpText="Percentual da receita referente a produtos com ST. Reduz a base de cálculo do ICMS."
+                  />
+                  {config.percentualST > 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Base de cálculo do ICMS será reduzida para: <span className="font-bold text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(config.receitaBruta * (1 - (config.percentualST / 100)))}</span>
+                    </p>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
